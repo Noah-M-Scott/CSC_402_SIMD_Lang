@@ -138,11 +138,15 @@ void initNodes(){
 struct genericNode* registerNode(struct genericNode* in){
 	static unsigned long symbolIndex = 0;
 	
+	if(in.type == SYMBOL_TYPE)
+		;	//we want to handle symbols seperately
+
+
 	int temp = NULL;
 	for(int i = currentTableSize - 1; i >= 0; i--)
 		if(symbolTable[i] != NULL)
 			if( (temp = recursiveCompare(in, symbolTable[i])) != NULL )
-				return (free(in), temp); //found a match
+				return temp; //found a match
 
 	
 	//couldn't find a match
@@ -163,10 +167,13 @@ struct genericNode* registerNode(struct genericNode* in){
 
 struct genericNode* recursiveCompare(struct genericNode* a, struct genericNode* b){
 	
-	if(a.nodeSize == b.nodeSize)
-		if(!memcmp(a, b, a.nodeSize))
-			for(int i = 0; i < a.childCount; i++){
-				return recursiveCompare();
+	if(a->nodeSize == b->nodeSize)
+		if(!memcmp(a, b, a->nodeSize))
+			for(int i = 0; i < a->childCount; i++){
+				if(a->children[i]->type == SYMBOL_TYPE)
+					//compare timestamps, might need to rebuild whole branch, otherwise, this is a end
+				else
+					return recursiveCompare(a->children[i], b->children[i]);
 			}
 	return NULL;
 }
