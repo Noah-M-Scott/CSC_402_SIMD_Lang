@@ -18,6 +18,8 @@
 "0b"[0-1]+		{ unsigned long long mask = 1; yylval.NUMBER = 0; int i = 1; while(1) if(yytext[i++] == 0) break; i-=2; for(; i > 1; i--, mask <<= 1) yylval.NUMBER |= (yytext[i] == '1') ? mask : 0; return NUMBER; } //binary
 
 
+"+|"		{ return ADD_BAR_OP; }
+"-|"		{ return SUB_BAR_OP; }
 "<<"		{ return LTLT_OP; }
 ">>"		{ return GTGT_OP; }
 "=="		{ return EQUEQU_OP; }

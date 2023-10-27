@@ -29,6 +29,9 @@ FILE *outFile;
 %token COLCOL_OP
 %token DOTDOTDOT_OP
 
+%token ADD_BAR_OP
+%token SUB_BAR_OP
+
 %token EXTERN_OP
 %token GLOBAL_OP
 %token VOID_OP
@@ -92,6 +95,8 @@ initial_expression:
 	| '(' expression ')'
 	| iota_vector
 	| initializer
+	| '&' IDENT
+	| SIZEOF_OP '(' type_name ')'
 	;
 
 initializer:
@@ -118,6 +123,7 @@ iota_vector:
 postfix_operation:
 	  initial_expression
 	| postfix_operation '[' expression ']'
+	| '&' postfix_operation '[' expression ']'
 	| postfix_operation '(' ')'
 	| postfix_operation '(' argument_list ')'
 	| postfix_operation '<' permute_list '>'
@@ -149,13 +155,11 @@ prefix_operation:
 	| '!' prefix_operation
 	| '+' prefix_operation
 	| '-' prefix_operation
-	| '&' prefix_operation
 	| '*' prefix_operation
-	| '|' prefix_operation
-	| OROR_OP prefix_operation
+	| ADD_BAR_OP prefix_operation
+	| SUB_BAR_OP prefix_operation
 	| '(' type_name ')' prefix_operation
 	| type_name '(' prefix_operation ')'
-	| SIZEOF_OP '(' type_name ')'
 	;
 
 multdiv_operation:
