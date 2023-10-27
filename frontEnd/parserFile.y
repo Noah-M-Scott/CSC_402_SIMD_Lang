@@ -420,6 +420,8 @@ compiler_directive:
 
 %%
 
+unsigned long GLOBAL_LINE_NUMBER;
+
 #include "lex.yy.c"
 
 void yyerror(char const *s){
@@ -431,6 +433,7 @@ int main(int argc, char *argv[]){
 	outFile = stdout;
 
 	yyin = stdin;
+	GLOBAL_LINE_NUMBER = 0;
 	yyparse();
 
 	//while(/*files not empty*/){

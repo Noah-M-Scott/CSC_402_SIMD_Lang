@@ -4,7 +4,9 @@
 
 
 %%
-[ \r\t\n]+	 	{ continue; }
+[ \r\t]+	 	{ continue; }
+
+[\n]			{ GLOBAL_LINE_NUMBER++; continue; }
 
 [0-9]+"."[0-9]+  	{ sscanf(yytext, "%lf", &yylval.FLOAT); return FLOAT; } //float
 "-"[0-9]+"."[0-9]+  	{ sscanf(yytext, "%lf", &yylval.FLOAT); return FLOAT; } //float
