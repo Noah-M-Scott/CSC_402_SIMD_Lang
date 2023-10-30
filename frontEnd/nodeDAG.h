@@ -18,7 +18,6 @@ enum {
 	IF_TYPE,
 	IF_ELSE_TYPE,
 	COMMA_TYPE,
-	SWAP_TYPE,
 	EQU_TYPE,
 	TERN_TYPE,
 	LOGIC_OR_TYPE,
@@ -48,7 +47,8 @@ enum {
 	MUL_TYPE,
 	PUNN_TYPE,
 	CONV_TYPE,
-	SUM_TYPE,
+	RUN_SUM_TYPE,
+	RUN_DIF_TYPE,
 	DEREF_TYPE,
 	REF_TYPE,
 	NEG_TYPE,
@@ -70,6 +70,7 @@ enum {
 	REF_MOD,	//mark at 0 for a reference
 	EXTERN_HINT,
 	GLOBAL_HINT,
+	CONST_HINT,
 	VOID_BASE,
 	BYTE_BASE,	//note: don't bother to type check unsigned-ness, let's me do -1 for 0xFF trick
 	WORD_BASE,
@@ -81,7 +82,6 @@ enum {
 	ARRAY_POSTFIX,
 	POINTER_POSTFIX,
 	FUNCTION_POSTFIX,
-	CONST_MOD,
 	SHARED_MOD
 };
 
@@ -100,8 +100,8 @@ enum {
 */
 
 struct genericNode{
-	long type;
 	long timestamp;
+	long type;
 	long nodeSize;
 	long childCount;
 	struct genericNode* children[];
@@ -110,11 +110,12 @@ struct genericNode{
 
 //this one is always a fixed size
 struct symbolEntry{
-	long scopeDepth;			//how deep in the scope it is
 	long timestamp;				//last write
-	long long constValue;			//last const value this symbol was set too, this gets type punned
+	struct symbolEntry* baseStore;
+	struct symbolEntry* next;
 	struct genericNode* sizeAndScope;	//the node the specifies the size / scope
 	char modString[32];
+	char constValue[64];			//last const value this symbol was set too, this gets type punned
 	char name[128];
 };
 
@@ -123,9 +124,8 @@ long globalTimestamp;
 
 unsigned long currentScopeCounter;
 
-unsigned long symbolTableIndex;
-struct symbolEntry symbolTable[512];
-
+struct symbolEntry* symbolStackPointer = NULL;
+struct symbolEntry* symbolBasePointer = NULL;
 
 unsigned long dagSize;
 struct genericNode** DAG;
@@ -133,7 +133,6 @@ struct genericNode** DAG;
 
 void initNodes(){
 	globalTimestamp = 0;
-	symbolTableIndex = 0;
 	currentScopeCounter = 0;
 	dagSize = 0;
 	
@@ -152,22 +151,24 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 	if(strcmp(in->name, "0immediate") == 0)	//0immediate is an invalid name, so it's a safe internal only
 		immediateCheck = 1;
 
-
-	for(i = symbolTableIndex - 1; i >= 0; i--){
-		if(strcmp(in->name, symbolTable[symbolTableIndex]->name) == 0){
+	//see if it exists
+	struct symbolEntry* current = symbolStackPointer;
+	while(current != NULL){
+		if(strcmp(in->name, current->name) == 0){
 			if(immediateCheck)
-				if(in->constValue != symbolTable[symbolTableIndex]->constValue)
-					goto its12o4atnight;	//const is different value than we need;
+				if(in->constValue != current->constValue)
+					goto badConst;	//const is different value than we need;
 
 			struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ) //create a pointer to it
 			temp->childCount = 1;
 			temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 			temp->type = SYMBOL_TYPE;
-			temp->children[0] = symbolTable[symbolTableIndex];
+			temp->children[0] = (struct genericNode*)current;
 			free(in);
 			return temp;
 		}
-		its12o4atnight:
+		badConst:
+		current = current.next;
 	}
 
 	//new symbol
@@ -177,20 +178,27 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 	}
 
 	//otherwise register it, and make a node for it
+	in->next = symbolStackPointer;
+	symbolStackPointer = in;
 
-
+	struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ) //create a pointer to it
+	temp->childCount = 1;
+	temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
+	temp->type = SYMBOL_TYPE;
+	temp->children[0] = (struct genericNode*)in;
+	return temp;
 }
 
-void pushScope(){
+void openScope(){
+	symbolStackPointer->baseStore = symbolBasePointer;
+	symbolBasePointer = symbolStackPointer;
 	currentScopeCounter++;
 }
 
-void popScope(){
-	while(symbolTable[symbolTableIndex - 1]->scopeDepth == currentScopeDepth){
-		free(symbolTable[symbolTableIndex - 1]);      
-		symbolTableIndex--;
-	}
+void closeScope(){
 	currentScopeCounter--;
+	symbolStackPointer = symbolBasePointer;
+	symbolBasePointer = symbolStackPointer->baseStore;
 }
 
 
@@ -199,7 +207,7 @@ void popScope(){
 struct genericNode* registerNode(struct genericNode* in){
 	static unsigned long dagIndex = 0;
 
-	in.timestamp = globalTimestamp;
+	in->timestamp = globalTimestamp;
 	globalTimestamp++;
 
 	int temp = NULL;
@@ -232,12 +240,15 @@ struct genericNode* recursiveCompare(struct genericNode* a, struct genericNode* 
 	if(a->nodeSize == b->nodeSize)
 		if(memcmp(a, b, a->nodeSize) == 0){
 			for(int i = 0; i < a->childCount; i++)
-				if(a->children[i]->type == SYMBOL_TYPE)
-					if(symbolTable[a->children[i]->children[0]].timestamp > b->children[i].timestamp)
+				if(a->children[i]->type == SYMBOL_TYPE){
+					if(a->children[i]->children[0]->timestamp > b->children[i].timestamp)
 						return NULL //the cache here is bum, we need to redo calculations
-					
+							
+					if(a->children[i]->children[0]->timestamp > )
+						return NULL //or it's a symbol marked shared
+							
 					//otherwise, fall through and continue tests
-				else{
+				}else{
 					struct genericNode* temp = recursiveCompare(a->children[i], b->children[i]);
 					if(temp != b->children[i])
 						return NULL;
