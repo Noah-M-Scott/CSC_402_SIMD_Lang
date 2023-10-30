@@ -11,10 +11,12 @@ FILE *outFile;
 %}
 
 %define api.value.type union
-%token <unsigned long long> NUMBER
-%token <long long> SIGN_NUMBER
-%token <double> FLOAT
+%token <char*> DECIMAL
+%token <char*> HEX
+%token <char*> BINARY
+%token <char*> FLOAT
 %token <char*> IDENT
+%token <char*> STRING_LIT
 %token LTLT_OP
 %token GTGT_OP
 %token EQUEQU_OP
@@ -22,7 +24,6 @@ FILE *outFile;
 %token LTEQU_OP
 %token NOTEQU_OP
 %token ARROW_OP
-%token SWAP_OP
 %token ANDAND_OP
 %token OROR_OP
 %token SIZEOF_OP
@@ -46,7 +47,6 @@ FILE *outFile;
 %token SINGLE_OP
 %token DOUBLE_OP
 %token STRUCT_OP
-%token ENUM_OP
 
 %token CONST_OP
 %token SHARED_OP
@@ -83,20 +83,23 @@ input:
 	;
 
 constant:
-	  SIGN_NUMBER   {printf("%lld\n", $1);}
-	| NUMBER	{printf("%llu\n", $1);}
-	| FLOAT		{printf("%lf\n", $1);}
+	  DECIMAL
+	| FLOAT
+	| BINARY
+	| HEX
 	;
 
 initial_expression: 
 	  IDENT
 	| constant
+	| STRING_LIT
 	| DOTDOTDOT_OP
 	| '(' expression ')'
 	| iota_vector
-	| initializer
+	| initializer_list
 	| '&' IDENT
 	| SIZEOF_OP '(' type_name ')'
+	| SIZEOF_OP '(' IDENT ')'
 	;
 
 initializer:
@@ -110,14 +113,14 @@ initializer_list:
 	;
 
 iota_vector:
-	  '[' expression ',' expression ']'
-	| '(' expression ',' expression ']'
-	| '[' expression ',' expression ')'
-	| '(' expression ',' expression ')'
-	| '[' expression ',' expression ',' expression ']'
-	| '(' expression ',' expression ',' expression ']'
-	| '[' expression ',' expression ',' expression ')'
-	| '(' expression ',' expression ',' expression ')'
+	  '[' constant ',' constant ']'
+	| '(' constant ',' constant ']'
+	| '[' constant ',' constant ')'
+	| '(' constant ',' constant ')'
+	| '[' constant ',' expression ',' constant ']'
+	| '(' constant ',' expression ',' constant ']'
+	| '[' constant ',' expression ',' constant ')'
+	| '(' constant ',' expression ',' constant ')'
 	;
 
 postfix_operation:
@@ -135,8 +138,8 @@ postfix_operation:
 permute_list:
 	  initial_expression
 	| permute_list ',' initial_expression
-	| permute_list ',' initial_expression ':' initial_expression
-	| permute_list ',' initial_expression ':' initial_expression ':' initial_expression
+	| permute_list ',' initial_expression ':' constant
+	| permute_list ',' initial_expression ':' constant ':' constant
 	;
 
 block_permute:
@@ -239,7 +242,6 @@ ternary_operation:
 assignment_operation:
 	  ternary_operation
 	| prefix_operation '=' assignment_operation
-	| prefix_operation SWAP_OP assignment_operation
 	;
 
 comma_operation:
@@ -268,6 +270,7 @@ declaration_init_list:
 hint_modifier:
 	  EXTERN_OP	
 	| GLOBAL_OP
+	| CONST_OP
 	;
 
 base_type:
@@ -284,7 +287,6 @@ base_type:
 	| DOUBLE_OP
 	| STRUCT_OP IDENT
 	| STRUCT_OP IDENT '{' struct_declaration_list '}'
-	| ENUM_OP IDENT '{' enumerator_list '}'
 	;
 
 struct_declaration_list:
@@ -311,19 +313,13 @@ enumerator_list:
 base_type_postfix:
 	  base_type
 	| base_type '<' constant '>'
-	| CONST_OP  base_type
 	| SHARED_OP base_type
-	| CONST_OP  base_type '<' expression '>'
-	| SHARED_OP base_type '<' expression '>'	
+	| SHARED_OP base_type '<' constant '>'	
 	;
 
 array_modifier:
-	  base_type_postfix '[' expression ']'
-	| pointer_modifier '[' expression ']'
-	| base_type_postfix CONST_OP  '[' expression ']'
-	| base_type_postfix SHARED_OP '[' expression ']'
-	| pointer_modifier  CONST_OP  '[' expression ']'
-	| pointer_modifier  SHARED_OP '[' expression ']'	
+	  base_type_postfix '[' constant ']'
+	| pointer_modifier '[' constant ']'
 	;
 
 pointer_modifier:
@@ -331,10 +327,6 @@ pointer_modifier:
 	| pointer_modifier  '*'
 	| array_modifier    '*'
 	| function_modifier '*'
-	| base_type_postfix CONST_OP  '*'
-	| pointer_modifier  CONST_OP  '*'
-	| array_modifier    CONST_OP  '*'
-	| function_modifier CONST_OP  '*'
 	| base_type_postfix SHARED_OP '*'
 	| pointer_modifier  SHARED_OP '*'
 	| array_modifier    SHARED_OP '*'
