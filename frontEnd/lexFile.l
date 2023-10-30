@@ -8,14 +8,14 @@
 
 [\n]			{ GLOBAL_LINE_NUMBER++; continue; }
 
-[0-9]+"."[0-9]+  	{ sscanf(yytext, "%lf", &yylval.FLOAT); return FLOAT; } //float
-"-"[0-9]+"."[0-9]+  	{ sscanf(yytext, "%lf", &yylval.FLOAT); return FLOAT; } //float
+[0-9]+"."[0-9]+  	{ yylval.FLOAT = strdup(yytext); return FLOAT; } //float
+"-"[0-9]+"."[0-9]+  	{ yylval.FLOAT = strdup(yytext); return FLOAT; } //float
 
-[0-9]+	 		{ sscanf(yytext, "%lld", &yylval.NUMBER); return NUMBER; } //decimal
-"-"[0-9]+	 	{ sscanf(yytext, "%lld", &yylval.SIGN_NUMBER); return SIGN_NUMBER; } //decimal
+[0-9]+	 		{ yylval.DECIMAL = strdup(yytext); return DECIMAL; } //decimal
+"-"[0-9]+	 	{ yylval.DECIMAL = strdup(yytext); return DECIMAL; } //decimal
 
-"0x"[0-9a-fA-F]+ 	{ sscanf(yytext, "%llx", &yylval.NUMBER); return NUMBER; } //hex
-"0b"[0-1]+		{ unsigned long long mask = 1; yylval.NUMBER = 0; int i = 1; while(1) if(yytext[i++] == 0) break; i-=2; for(; i > 1; i--, mask <<= 1) yylval.NUMBER |= (yytext[i] == '1') ? mask : 0; return NUMBER; } //binary
+"0x"[0-9a-fA-F]+ 	{ yylval.HEX = strdup(yytext); return HEX; } //hex
+"0b"[0-1]+		{ yylval.BINARY = strdup(yytext); return BINARY; } //binary
 
 
 "+|"		{ return ADD_BAR_OP; }
@@ -27,7 +27,6 @@
 "<="		{ return LTEQU_OP; }
 "!="		{ return NOTEQU_OP; }
 "->"		{ return ARROW_OP; }
-"<->"		{ return SWAP_OP; }
 "&&"		{ return ANDAND_OP; }
 "||"		{ return OROR_OP; }
 "SIZEOF"	{ return SIZEOF_OP; }
@@ -49,7 +48,6 @@
 "SINGLE"	{ return SINGLE_OP; }
 "DOUBLE"	{ return DOUBLE_OP; }
 "STRUCT"	{ return STRUCT_OP; }
-"ENUM"		{ return ENUM_OP; }
 "CONST"		{ return CONST_OP; }
 "SHARED"	{ return SHARED_OP; }
 "IF"		{ return IF_OP; }
@@ -73,33 +71,14 @@
 "NOTHING"	{ return NOTHING_OP; }
 
 
+"\""[.]+"\""		{ yylval.STRING_LIT = = strdup(yytext); return STRING_LIT; }
+
 [a-zA-Z][a-zA-Z0-9_]*	{ yylval.IDENT = strdup(yytext); return IDENT; }
 [a-zA-Z_][a-zA-Z0-9_]+	{ yylval.IDENT = strdup(yytext); return IDENT; }
 
 
 %%
 
-
-void binscan(const char* textIn, unsigned long long* numberOut){
-
-	unsigned long long mask = 1;
-
-	*numberOut = 0;
-	int i = 0;	
-
-	while(1)
-		if(textIn[i++] == 0)
-			break;
-
-	--i;
-	for(; i > 1; i--, mask <<= 1){
-		
-		*numberOut |= (textIn[i] == '1') ? mask : 0;
-
-	}
-
-	return;
-}
 
 //int yywarp(void) {return 1;}
 
