@@ -71,7 +71,7 @@
 "NOTHING"	{ return NOTHING_OP; }
 
 
-"\""[.]+"\""		{ yylval.STRING_LIT = = strdup(yytext); return STRING_LIT; }
+"\""[.]+"\""		{ yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
 
 [a-zA-Z][a-zA-Z0-9_]*	{ yylval.IDENT = strdup(yytext); return IDENT; }
 [a-zA-Z_][a-zA-Z0-9_]+	{ yylval.IDENT = strdup(yytext); return IDENT; }

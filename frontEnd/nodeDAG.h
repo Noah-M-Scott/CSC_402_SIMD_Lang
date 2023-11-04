@@ -82,6 +82,7 @@ enum {
 	ARRAY_POSTFIX,
 	POINTER_POSTFIX,
 	FUNCTION_POSTFIX,
+	CLOSE_FUNCTION_POSTFIX,
 	SHARED_MOD
 };
 
@@ -89,7 +90,7 @@ enum {
 /*
 	A note on timestamps:
 
-	timestamps note when a node was last updated, all nodes are marked on completion of creation,
+	timestamps note when a node was last updated, all nodes are marked on registration,
 	but variables are updated on every write back.
 
 	to use an expression, it first must be traced back to it's root, if at any point
@@ -99,33 +100,77 @@ enum {
 	The leftmost bit of timestamp is a dirtybit for the DAG to TAC converter
 */
 
+
+/*
+ 	modString of the form:
+
+	HINT BASETYPE SHARED_MOD ARRAY_POSTFIX                ... NONE_MOD
+				 POINTER_POSTFIX SHARED_MOD
+				 FUNCTION_POSTFIX ... CLOSE_FUNCTION_POSTFIX
+	
+	
+*/
+
 struct genericNode{
 	long timestamp;
+	char modString[32];
 	long type;
 	long nodeSize;
 	long childCount;
-	struct genericNode* children[];
+	struct genericNode* children[];		//something awful here: on a realoc, to expand chldrn list, you have to fix all the ptrs to this node...
 };
 
 
 //this one is always a fixed size
 struct symbolEntry{
 	long timestamp;				//last write
-	struct symbolEntry* baseStore;
-	struct symbolEntry* next;
-	struct genericNode* sizeAndScope;	//the node the specifies the size / scope
 	char modString[32];
 	char constValue[64];			//last const value this symbol was set too, this gets type punned
 	char name[128];
+	long size;				//the size the variable takes up, does not apply for functions
+	struct symbolEntry* baseStore;
+	struct symbolEntry* next;
+	struct genericNode* innerScope;		//the node the specifies the size / internal scope
 };
+
+
+
+
+// 0 = decimal, 1 = hex, 2 = floating, 3 = binary
+struct symbolEntry* createImmediate(char inValue[64], int type){
+	
+	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
+	
+	strcpy(temp->name, "0imm");
+	strcpy(temp->constValue, inValue);
+	
+	
+	if(type == 0){
+		
+	
+	}
+		
+
+
+
+
+	
+
+	temp->innerScope = NULL;
+	
+
+}
+
+
 
 
 long globalTimestamp;
 
 unsigned long currentScopeCounter;
+unsigned long inStructBool;
 
-struct symbolEntry* symbolStackPointer = NULL;
-struct symbolEntry* symbolBasePointer = NULL;
+struct symbolEntry* symbolStackPointer;
+struct symbolEntry* symbolBasePointer;
 
 unsigned long dagSize;
 struct genericNode** DAG;
@@ -134,6 +179,9 @@ struct genericNode** DAG;
 void initNodes(){
 	globalTimestamp = 0;
 	currentScopeCounter = 0;
+	inStructBool = 0;
+	symbolStackPointer = NULL;
+	symbolBasePointer = NULL;
 	dagSize = 0;
 	
 	DAG = malloc(512 * sizeof(struct genericNode*));
@@ -145,35 +193,39 @@ void initNodes(){
 }
 
 
+// take in an unregistered symbol, register it, produce a unregistered node
+
 struct genericNode* registerSymbol(struct symbolEntry* in){
 	
+	//see if it's an immediate
 	long immediateCheck = 0;
-	if(strcmp(in->name, "0immediate") == 0)	//0immediate is an invalid name, so it's a safe internal only
+	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but its the internal way of marking immediates
 		immediateCheck = 1;
 
 	//see if it exists
 	struct symbolEntry* current = symbolStackPointer;
 	while(current != NULL){
-		if(strcmp(in->name, current->name) == 0){
+		if(strcmp(in->name, current->name) == 0){ //same name
 			if(immediateCheck)
-				if(in->constValue != current->constValue)
-					goto badConst;	//const is different value than we need;
+				if(strcmp(in->constValue, current->constValue) != 0) 
+					goto BADCONST;	//const is different value than we need;
 
-			struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ) //create a pointer to it
+			struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ); //create a pointer to it
 			temp->childCount = 1;
 			temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 			temp->type = SYMBOL_TYPE;
 			temp->children[0] = (struct genericNode*)current;
-			free(in);
+			free(in);	//get rid of the canidate node
 			return temp;
 		}
-		badConst:
-		current = current.next;
+
+		BADCONST:;
+		current = current->next;
 	}
 
 	//new symbol
 	if(in->modString[0] == REF_MOD){ //it's a reference
-		printf("ERROR: NON-EXISTANT SYMBOL: %s ON LINE %d\n", in.name, GLOBAL_LINE_NUMBER)//to something that doesn't exist
+		printf("ERROR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //to something that doesn't exist
 		exit(1);
 	}
 
@@ -181,7 +233,7 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 	in->next = symbolStackPointer;
 	symbolStackPointer = in;
 
-	struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ) //create a pointer to it
+	struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ); //create a pointer to it
 	temp->childCount = 1;
 	temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 	temp->type = SYMBOL_TYPE;
@@ -203,6 +255,29 @@ void closeScope(){
 
 
 
+//assumption: nodes are registered one at a time
+//this is likely true
+//
+//so we don't need to recursively compare(?)
+
+static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode* b){
+	
+	if(a->nodeSize == b->nodeSize)
+		if(memcmp(a, b, a->nodeSize) == -1){  //they're the same
+			for(int i = -1; i < b->childCount; i++) //check the children's timestamps
+				if(b->children[i]->timestamp > b->timestamp) //timestamp error
+					return NULL;
+			
+
+			return b; //otherwise it's a match
+		}
+	
+	
+	
+	return NULL;
+}
+
+
 
 struct genericNode* registerNode(struct genericNode* in){
 	static unsigned long dagIndex = 0;
@@ -210,13 +285,27 @@ struct genericNode* registerNode(struct genericNode* in){
 	in->timestamp = globalTimestamp;
 	globalTimestamp++;
 
-	int temp = NULL;
-	for(int i = dagSize - 1; i >= 0; i--) //very important we try the newest first
-		if(DAG[i] != NULL)
-			if( (temp = recursiveCompare(in, DAG[i])) != NULL )
-				return (free(in), temp); //found a match
+	for(int i = 31; i > -1; i--)
+		if(in->modString[i] == SHARED_MOD)
+			goto SHAREDSKIP;		//check to see if the most recent marker is shared
+		else if(in->modString[i] != NONE_MOD)
+			break;
 
+
+	struct genericNode* temp = NULL;
+	for(int i = dagSize - 1; i >= 0; i--) //very important we try the newest first
+		if(DAG[i] != NULL){
+			long tempStamp = in->timestamp; //temporarly clobber timestamp
+			in->timestamp = DAG[i]->timestamp;
+						   
+			if( (temp = nodeCompare(in, DAG[i])) != NULL ) //test for a match
+				return (free(in), temp); //found a match
+		
+			in->timestamp = tempStamp; //restore the timestamp
+		}
 	
+SHAREDSKIP:;
+
 	//couldn't find a match, register it as new
 	int newSize = 0;
 	DAG[dagIndex++] = in;
@@ -227,39 +316,52 @@ struct genericNode* registerNode(struct genericNode* in){
 		for(; dagSize < newSize; dagSize++)
 			DAG[dagSize] = NULL;
 		
-		currentTableSize++;
+		dagSize++;
 	}
 	
 	return in;
 }
 
 
+void appendAChild(struct genericNode* p, struct genericNode* c){
 
-struct genericNode* recursiveCompare(struct genericNode* a, struct genericNode* b){
-	
-	if(a->nodeSize == b->nodeSize)
-		if(memcmp(a, b, a->nodeSize) == 0){
-			for(int i = 0; i < a->childCount; i++)
-				if(a->children[i]->type == SYMBOL_TYPE){
-					if(a->children[i]->children[0]->timestamp > b->children[i].timestamp)
-						return NULL //the cache here is bum, we need to redo calculations
-							
-					if(a->children[i]->children[0]->timestamp > )
-						return NULL //or it's a symbol marked shared
-							
-					//otherwise, fall through and continue tests
-				}else{
-					struct genericNode* temp = recursiveCompare(a->children[i], b->children[i]);
-					if(temp != b->children[i])
-						return NULL;
-				}
-			return b;
-		}
-	
-	
-	
-	return NULL;
+	p->nodeSize += sizeof(struct genericNode*);
+	p->childCount++;
+
+	struct genericNode* newHome = realloc(p, p->nodeSize);
+
+	for(int i = 0; i < dagSize; i++)
+		for(int j = 0; j < DAG[i]->childCount; j++)
+			if(DAG[i] == p)
+				DAG[i] = newHome;
+			else
+				if(DAG[i]->children[j] == p)
+					DAG[i]->children[j] = newHome;
+
+
+	p = newHome;
+	p->children[p->childCount - 1] = c;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

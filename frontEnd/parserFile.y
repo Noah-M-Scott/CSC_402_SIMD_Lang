@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
+unsigned long GLOBAL_LINE_NUMBER;
+#include "frontEnd/nodeDAG.h"
+
 int yylex(void);
 void yyerror(char const *);
 
@@ -83,7 +86,7 @@ input:
 	;
 
 constant:
-	  DECIMAL
+	  DECIMAL	{struct symbolEntry* temp = malloc(sizeof(struct symbolEntry*)); temp->name[0] = '\0'; strcpy(temp->constValue, $1); temp->sizeAndScope =  }
 	| FLOAT
 	| BINARY
 	| HEX
@@ -286,28 +289,6 @@ base_type:
 	| SINGLE_OP
 	| DOUBLE_OP
 	| STRUCT_OP IDENT
-	| STRUCT_OP IDENT '{' struct_declaration_list '}'
-	;
-
-struct_declaration_list:
-	  struct_declaration
-	| struct_declaration_list ',' struct_declaration
-	;
-
-struct_declaration:
-	  type_name struct_declaration_initializer_list ';'
-	;
-
-struct_declaration_initializer_list:
-	  IDENT
-	| struct_declaration_initializer_list ',' IDENT
-	;
-
-enumerator_list:
-	  IDENT
-	| IDENT '=' constant
-	| enumerator_list ',' IDENT
-	| enumerator_list ',' IDENT '=' constant
 	;
 
 base_type_postfix:
@@ -416,8 +397,6 @@ compiler_directive:
 
 %%
 
-unsigned long GLOBAL_LINE_NUMBER;
-
 #include "lex.yy.c"
 
 void yyerror(char const *s){
@@ -430,6 +409,9 @@ int main(int argc, char *argv[]){
 
 	yyin = stdin;
 	GLOBAL_LINE_NUMBER = 0;
+	
+	initNodes();
+
 	yyparse();
 
 	//while(/*files not empty*/){
