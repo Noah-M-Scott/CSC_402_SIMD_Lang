@@ -72,10 +72,14 @@ enum {
 	GLOBAL_HINT,
 	CONST_HINT,
 	VOID_BASE,
-	BYTE_BASE,	//note: don't bother to type check unsigned-ness, let's me do -1 for 0xFF trick
+	BYTE_BASE,
+	UBYTE_BASE,
 	WORD_BASE,
+	UWORD_BASE,
 	LONG_BASE,
+	ULONG_BASE,
 	QUAD_BASE,	//also used to mark immediate integer data
+	UQUAD_BASE
 	SINGLE_BASE,
 	DOUBLE_BASE,	//also used to mark immediate floating data
 	STRUCT_BASE,
@@ -104,12 +108,20 @@ enum {
 /*
  	modString of the form:
 
-	HINT BASETYPE SHARED_MOD ARRAY_POSTFIX                ... NONE_MOD
-				 POINTER_POSTFIX SHARED_MOD
-				 FUNCTION_POSTFIX ... CLOSE_FUNCTION_POSTFIX
+	HINT SHARED_MOD BASETYPE            ARRAY_POSTFIX                               ... NONE_MOD
+				 SHARED_MOD POINTER_POSTFIX
+				            FUNCTION_POSTFIX ... CLOSE_FUNCTION_POSTFIX
 	
 	
 */
+
+
+/*
+ *	BIG IMPORTANT NOTE: IF YOUR GETTING ERRORS, ENSURE THAT STRUCT PACKING IS OFF ON COMPILE; THIS USES SOME PSEUDO POLYMORPHISM
+ *	ON "timestamp"
+ *
+ *	THOUGH IT SHOULD BE FINE EVEN IF IT'S ON
+ */
 
 struct genericNode{
 	long timestamp;
@@ -135,9 +147,17 @@ struct symbolEntry{
 };
 
 
-struct genericNode* createNode(){}
+//this lang has very strict type checking
+//no auto converting; except for: integer immediates
+//try
+void typeConvert(){
 
 
+
+}
+
+
+//creates a incomplete symbol node, marks a ref
 struct symbolEntry* createRef(char inName*){
 	
 	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
@@ -181,19 +201,19 @@ struct symbolEntry* createImmediate(char inValue*, int type){
 			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
 
 		else if( inputVal < 256 && inputVal > -1)
-			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
+			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = UBYTE_BASE);
 
 		else if( inputVal < 32768 && inputVal > -32769)
 			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
 
 		else if( inputVal < 65536 && inputVal > -1)
-			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
+			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = UWORD_BASE);
 
 		else if( inputVal < 2147483648 && inputVal > -2147483649)
 			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
 
 		else if( inputVal < 4294967296 && inputVal > -1)
-			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
+			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = ULONG_BASE);
 		
 		else
 			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = QUAD_BASE);
@@ -264,41 +284,56 @@ void initNodes(){
 
 
 // take in an unregistered symbol, register it, produce a unregistered node
-
-// add mod string copying
 struct genericNode* registerSymbol(struct symbolEntry* in){
 	
 	//see if it's an immediate
 	long immediateCheck = 0;
-	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but its the internal way of marking immediates
+	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but it's the internal way of marking immediates
 		immediateCheck = 1;
 
 	//see if it exists
 	struct symbolEntry* current = symbolStackPointer;
 	while(current != NULL){
 		if(strcmp(in->name, current->name) == 0){ //same name
-			if(immediateCheck)
+			
+			if(immediateCheck){ //see if it's an immediate we already have in the DAG
 				if(strcmp(in->constValue, current->constValue) != 0) 
 					goto BADCONST;	//const is different value than we need;
+			
+			}else if(in->modString[0] != REF_MOD){ //it's a not a immediate, nor a reference, double define
+				fprintf(stderr, "ERROR: DOUBLE DEFINE: %s, ON LINE %d\n", in->name, GLOBAL_LINE_NUMBER);
+				exit(1);
+			
+			}
 
+			//otherwise it's a valid ref, swap it out with the right symbol
 			struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ); //create a pointer to it
 			temp->childCount = 1;
 			temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 			temp->type = SYMBOL_TYPE;
 			temp->children[0] = (struct genericNode*)current;
-			free(in);	//get rid of the canidate node
+			
+			strcpy(temp->modString, current->modString); //copy the modString upwards
+			
+			if(poisonRefBool && !immediateCheck) //this is a poison reference to a non immediate, and the timestamp on the symbol needs to be updated
+				current->timestamp = globalTimestamp++;
+
+
+			free(in);	//get rid of the canidate Symbol
 			return temp;
 		}
 
-		BADCONST:;
 		current = current->next;
 	}
 
-	//new symbol
-	if(in->modString[0] == REF_MOD){ //it's a reference
-		printf("ERROR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //to something that doesn't exist
+BADCONST:;
+
+	//see if it's an invalid reference
+	if(in->modString[0] == REF_MOD){ //it's a reference...
+		printf("ERROR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
 		exit(1);
 	}
+
 
 	//otherwise register it, and make a node for it
 	in->next = symbolStackPointer;
@@ -309,8 +344,12 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 	temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 	temp->type = SYMBOL_TYPE;
 	temp->children[0] = (struct genericNode*)in;
+	
+	strcpy(temp->modString, current->modString); //copy the modString upwards
+	
 	return temp;
 }
+
 
 void openScope(){
 	symbolStackPointer->baseStore = symbolBasePointer;
@@ -334,8 +373,8 @@ void closeScope(){
 static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode* b){
 	
 	if(a->nodeSize == b->nodeSize)
-		if(memcmp(a, b, a->nodeSize) == -1){  //they're the same
-			for(int i = -1; i < b->childCount; i++) //check the children's timestamps
+		if(memcmp(a, b, a->nodeSize) == 0){  //they're the same
+			for(int i = 0; i < b->childCount; i++) //check the children's timestamps
 				if(b->children[i]->timestamp > b->timestamp) //timestamp error
 					return NULL;
 			
@@ -353,18 +392,18 @@ static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode
 struct genericNode* registerNode(struct genericNode* in){
 	static unsigned long dagIndex = 0;
 
-	in->timestamp = globalTimestamp;
-	globalTimestamp++;
+	in->timestamp = globalTimestamp++;
 
-	for(int i = 31; i > -1; i--)
-		if(in->modString[i] == SHARED_MOD)
-			goto SHAREDSKIP;		//check to see if the most recent marker is shared
-		else if(in->modString[i] != NONE_MOD)
+	for(int i = 31; i > 0; i--)
+		if(in->modString[i] != NONE_MOD){
+			if(in->modString[i - 1] == SHARED_MOD)
+				goto SHAREDSKIP;		//check to see if the most recent marker is shared
+		}else
 			break;
 
 
 	struct genericNode* temp = NULL;
-	for(int i = dagSize - 1; i >= 0; i--) //very important we try the newest first
+	for(int i = dagIndex; i > -1; i--) //very important we try the newest first
 		if(DAG[i] != NULL){
 			long tempStamp = in->timestamp; //temporarly clobber timestamp
 			in->timestamp = DAG[i]->timestamp;
@@ -377,15 +416,16 @@ struct genericNode* registerNode(struct genericNode* in){
 	
 SHAREDSKIP:;
 
-	//couldn't find a match, register it as new
+	//either couldn't find a match, register it as new; or the node is shared and needs to be redone
 	int newSize = 0;
 	DAG[dagIndex++] = in;
-	if(dagIndex == dagSize){
-		newSize = dagSize << 1;
+
+	if(dagIndex == dagSize){		//realloc if needed
+		newSize = dagSize * 2;
 		DAG = realloc(DAG, newSize * sizeof(struct genericNode*));
 		
 		for(; dagSize < newSize; dagSize++)
-			DAG[dagSize] = NULL;
+			DAG[dagSize] = NULL;		//null out the empty ones just in case
 		
 		dagSize++;
 	}
@@ -394,6 +434,8 @@ SHAREDSKIP:;
 }
 
 
+//adds a new child to a node, but since reallocing a node more often than not loses it's place in memory
+//we have to go through and update all instances of it's old pointer
 void appendAChild(struct genericNode* p, struct genericNode* c){
 
 	p->nodeSize += sizeof(struct genericNode*);
@@ -402,12 +444,14 @@ void appendAChild(struct genericNode* p, struct genericNode* c){
 	struct genericNode* newHome = realloc(p, p->nodeSize);
 
 	for(int i = 0; i < dagSize; i++)
-		for(int j = 0; j < DAG[i]->childCount; j++)
+		if(DAG[i] != NULL){
 			if(DAG[i] == p)
 				DAG[i] = newHome;
 			else
-				if(DAG[i]->children[j] == p)
-					DAG[i]->children[j] = newHome;
+				for(int j = 0; j < DAG[i]->childCount; j++)
+					if(DAG[i]->children[j] == p)
+						DAG[i]->children[j] = newHome;
+		}
 
 
 	p = newHome;
