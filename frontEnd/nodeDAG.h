@@ -131,39 +131,108 @@ struct symbolEntry{
 	struct symbolEntry* baseStore;
 	struct symbolEntry* next;
 	struct genericNode* innerScope;		//the node the specifies the size / internal scope
+	long stringLitBool;			//if the immediate is a string literal or not
 };
 
 
+struct genericNode* createNode(){}
 
 
-// 0 = decimal, 1 = hex, 2 = floating, 3 = binary
-struct symbolEntry* createImmediate(char inValue[64], int type){
+struct symbolEntry* createRef(char inName*){
 	
+	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
+	strcpy(temp->name, inName);
+	memset(temp->modString, NONE_MOD, 32);
+	temp->modString[0] = REF_MOD;
+	
+	return temp;
+}
+
+
+// 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral
+struct symbolEntry* createImmediate(char inValue*, int type){
+	static long stringLitCounter = 0;
+
 	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 	
 	strcpy(temp->name, "0imm");
-	strcpy(temp->constValue, inValue);
-	
-	
-	if(type == 0){
+	memset(temp->modString, NONE_MOD, 32);
+	temp->innerScope = NULL;
+	temp->stringLitBool = 0;
+
+	if(type < 3){
+		strcpy(temp->constValue, inValue);
+		free(inValue);
+
+		long long inputVal;
 		
+		if(type == 0)
+			sscanf(inValue, "%ld", &inputVal);
+		
+		if(type == 1)
+			sscanf(inValue, "%lx", &inputVal);
+		
+		if(type == 2)
+			exit(1); //todo: add binary support
+		
+
+		//ugly as sin way of doing this
+		if( inputVal < 128 && inputVal > -129)
+			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
+
+		else if( inputVal < 256 && inputVal > -1)
+			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
+
+		else if( inputVal < 32768 && inputVal > -32769)
+			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
+
+		else if( inputVal < 65536 && inputVal > -1)
+			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
+
+		else if( inputVal < 2147483648 && inputVal > -2147483649)
+			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
+
+		else if( inputVal < 4294967296 && inputVal > -1)
+			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
+		
+		else
+			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = QUAD_BASE);
 	
+	}else if (type == 3){
+		strcpy(temp->constValue, inValue);
+		free(inValue);
+
+		double inputVal;
+		sscanf(inValue, "%lf", &inputVal);
+
+		if(FLT_MAX <= inputVal && inputVal >= FLT_MIN)
+			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = SINGLE_BASE);
+		else
+			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = DOUBLE_BASE);
+	
+	}else{
+		temp->stringLitBool = 1;
+		temp->modString[0] = CONST_HINT;
+		temp->modString[1] = BYTE_BASE;
+		temp->modString[2] = POINTER_POSTFIX;
+		temp->size = 8;
+		
+		sprintf( &(temp->constValue)[3], "%d", stringLabelCounter++);
+		
+		temp->constValue[0] = 's';
+		temp->constValue[1] = 't';
+		temp->constValue[2] = 'r';
+
+		temp->innerScope = (struct genericNode*)inValue;
 	}
 		
 
-
-
-
-	
-
-	temp->innerScope = NULL;
-	
-
+	return temp;
 }
 
 
 
-
+unsigned long poisonRefBool;
 long globalTimestamp;
 
 unsigned long currentScopeCounter;
@@ -180,6 +249,7 @@ void initNodes(){
 	globalTimestamp = 0;
 	currentScopeCounter = 0;
 	inStructBool = 0;
+	poisonRefBool = 0;
 	symbolStackPointer = NULL;
 	symbolBasePointer = NULL;
 	dagSize = 0;
@@ -195,6 +265,7 @@ void initNodes(){
 
 // take in an unregistered symbol, register it, produce a unregistered node
 
+// add mod string copying
 struct genericNode* registerSymbol(struct symbolEntry* in){
 	
 	//see if it's an immediate

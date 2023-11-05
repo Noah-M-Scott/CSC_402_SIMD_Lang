@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <float.h>
 
 unsigned long GLOBAL_LINE_NUMBER;
 #include "frontEnd/nodeDAG.h"
