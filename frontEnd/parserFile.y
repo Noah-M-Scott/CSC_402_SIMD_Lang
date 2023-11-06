@@ -78,6 +78,44 @@ FILE *outFile;
 %token NOTHING_OP
 
 
+%nterm <struct genericNode*> constant
+%nterm <struct genericNode*> initial_expression
+%nterm <struct genericNode*> initializer
+%nterm <struct genericNode*> initializer_list
+%nterm <struct genericNode*> iota_vector
+%nterm <struct genericNode*> postfix_operation
+%nterm <struct genericNode*> permute_list
+%nterm <struct genericNode*> block_permute
+%nterm <struct genericNode*> argument_list
+%nterm <struct genericNode*> prefix_operation
+%nterm <struct genericNode*> multdiv_operation
+%nterm <struct genericNode*> addsub_operation
+%nterm <struct genericNode*> shift_operation
+%nterm <struct genericNode*> relation_operation
+%nterm <struct genericNode*> equality_operation
+%nterm <struct genericNode*> bitwise_and_operation
+%nterm <struct genericNode*> bitwise_eor_operation
+%nterm <struct genericNode*> bitwise_or_operation
+%nterm <struct genericNode*> mesh_operation
+%nterm <struct genericNode*> logical_and_operation
+%nterm <struct genericNode*> logical_or_operation
+%nterm <struct genericNode*> ternary_operation
+%nterm <struct genericNode*> assignment_operation
+%nterm <struct genericNode*> comma_operation
+%nterm <struct genericNode*> expression
+%nterm <struct genericNode*> declaration
+%nterm <struct genericNode*> declaration_init_list
+%nterm <struct genericNode*> hint_modifier
+%nterm <struct genericNode*> base_type
+%nterm <struct genericNode*> base_type_postfix
+%nterm <struct genericNode*> array_modifier
+%nterm <struct genericNode*> pointer_modifier
+%nterm <struct genericNode*> function_modifier
+%nterm <struct genericNode*> type_name
+%nterm <struct genericNode*> parameter_list
+%nterm <struct genericNode*> statement
+%nterm <struct genericNode*> scope
+
 
 %%
 
@@ -87,23 +125,31 @@ input:
 	;
 
 constant:
-	  DECIMAL	{struct symbolEntry* temp = malloc(sizeof(struct symbolEntry*)); temp->name[0] = '\0'; strcpy(temp->constValue, $1); temp->sizeAndScope =  }
-	| FLOAT
-	| BINARY
-	| HEX
+	  DECIMAL	{ $$ = registerNode(registerSymbol(createImmediate($1, 0)));  }
+	| FLOAT		{ $$ = registerNode(registerSymbol(createImmediate($1, 3)));  }
+	| BINARY	{ $$ = registerNode(registerSymbol(createImmediate($1, 2)));  }
+	| HEX		{ $$ = registerNode(registerSymbol(createImmediate($1, 1)));  }
 	;
 
 initial_expression: 
-	  IDENT
-	| constant
-	| STRING_LIT
-	| DOTDOTDOT_OP
-	| '(' expression ')'
-	| iota_vector
-	| initializer_list
-	| '&' IDENT
-	| SIZEOF_OP '(' type_name ')'
-	| SIZEOF_OP '(' IDENT ')'
+	  IDENT			{ $$ = registerNode(registerSymbol(createRef($1))); }
+	| constant		{ $$ = $1; }
+	| STRING_LIT		{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); }
+
+	| DOTDOTDOT_OP		{ struct genericNode* temp = malloc(sizeof(struct genericNode)); 
+				  temp->childCount = 0; 
+				  temp->nodeSize = sizeof(struct genericNode); 
+				  temp->type = DOTDOT_TYPE;
+				  memset(temp->modString, NONE_MOD, 32);
+				  $$ = registerNode(); 
+				}
+	
+	| '(' expression ')'	{ $$ = $2; }
+	| iota_vector		{ $$ = $1; }
+	| initializer_list	{ $$ = $1; }
+	| '&' IDENT		{ $$ = registerNode(registerSymbol(createImmediate($1, 5))); }
+	| SIZEOF_OP '(' type_name ')'	{ $$ = registerNode(registerSymbol(createSizeOf($1, 0))); }
+	| SIZEOF_OP '(' IDENT ')'	{ $$ = registerNode(registerSymbol(createSizeOf($1, 1))); }
 	;
 
 initializer:
@@ -378,22 +424,7 @@ scope:
 	;
 
 
-directive:
-	  INCLUDE_OP '"' IDENT '"'
-	| IFDEF_OP IDENT THEN_OP directive
-	| IFDEF_OP IDENT THEN_OP directive ELSE_OP directive
-	| IFNDEF_OP IDENT THEN_OP directive
-	| IFNDEF_OP IDENT THEN_OP directive ELSE_OP directive
-	| IF_OP constant THEN_OP directive
-	| IF_OP constant THEN_OP directive ELSE_OP directive
-	| DEFINE_OP IDENT
-	| UNDEF_OP IDENT
-	| NOTHING_OP
-	;
 
-compiler_directive:
-	  '#' directive '#'
-	;
 
 
 %%

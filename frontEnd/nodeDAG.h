@@ -79,7 +79,7 @@ enum {
 	LONG_BASE,
 	ULONG_BASE,
 	QUAD_BASE,	//also used to mark immediate integer data
-	UQUAD_BASE
+	UQUAD_BASE,
 	SINGLE_BASE,
 	DOUBLE_BASE,	//also used to mark immediate floating data
 	STRUCT_BASE,
@@ -137,7 +137,7 @@ struct genericNode{
 struct symbolEntry{
 	long timestamp;				//last write
 	char modString[32];
-	char constValue[64];			//last const value this symbol was set too, this gets type punned
+	char constValue[128];			//last const value this symbol was set too, this gets type punned
 	char name[128];
 	long size;				//the size the variable takes up, does not apply for functions
 	struct symbolEntry* baseStore;
@@ -147,18 +147,24 @@ struct symbolEntry{
 };
 
 
-//this lang has very strict type checking
-//no auto converting; except for: integer immediates
-//try
-void typeConvert(){
+unsigned long inStructBool;
+unsigned long inFunctionParamBool;
+unsigned long poisonRefBool;
+long globalTimestamp;
 
+unsigned long currentScopeCounter;
+unsigned long inStructBool;
 
+struct symbolEntry* symbolStackPointer;
+struct symbolEntry* symbolBasePointer;
 
-}
+unsigned long dagSize;
+struct genericNode** DAG;
+
 
 
 //creates a incomplete symbol node, marks a ref
-struct symbolEntry* createRef(char inName*){
+struct symbolEntry* createRef(char* inName){
 	
 	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 	strcpy(temp->name, inName);
@@ -169,8 +175,8 @@ struct symbolEntry* createRef(char inName*){
 }
 
 
-// 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral
-struct symbolEntry* createImmediate(char inValue*, int type){
+// 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral, 5 = label
+struct symbolEntry* createImmediate(char* inValue, int type){
 	static long stringLitCounter = 0;
 
 	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
@@ -184,7 +190,7 @@ struct symbolEntry* createImmediate(char inValue*, int type){
 		strcpy(temp->constValue, inValue);
 		free(inValue);
 
-		long long inputVal;
+		long inputVal;
 		
 		if(type == 0)
 			sscanf(inValue, "%ld", &inputVal);
@@ -230,20 +236,52 @@ struct symbolEntry* createImmediate(char inValue*, int type){
 		else
 			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = DOUBLE_BASE);
 	
-	}else{
+	}else if (type == 4){
 		temp->stringLitBool = 1;
 		temp->modString[0] = CONST_HINT;
 		temp->modString[1] = BYTE_BASE;
 		temp->modString[2] = POINTER_POSTFIX;
 		temp->size = 8;
 		
-		sprintf( &(temp->constValue)[3], "%d", stringLabelCounter++);
+		sprintf( &(temp->constValue)[3], "%ld", stringLitCounter++);
 		
 		temp->constValue[0] = 's';
 		temp->constValue[1] = 't';
 		temp->constValue[2] = 'r';
 
 		temp->innerScope = (struct genericNode*)inValue;
+	
+	}else{
+		//create label immediate
+		strcpy( &(temp->name)[1], inValue );
+		
+		temp->name[0] = '&';
+
+		strcpy( temp->constValue, inValue );
+		
+		//find name to copy modString, append a star
+		struct symbolEntry* current = symbolStackPointer;
+		while(current != NULL){
+			if(strcmp(inValue, current->name) == 0){ //same name			
+			
+				memcpy(temp->modString, current->modString, 32);
+				
+				for(int i = 30; i > -1; i--)
+					if(temp->modString[i] != NONE_MOD){
+						temp->modString[i + 1] = POINTER_POSTFIX;
+						break;
+					}
+				
+
+				return temp;
+
+			}
+
+			current = current->next;
+		}
+
+		fprintf(stderr, "ERROR: LABEL DOES NOT EXIST, LINE %ld\n", GLOBAL_LINE_NUMBER);
+		exit(1);
 	}
 		
 
@@ -252,17 +290,6 @@ struct symbolEntry* createImmediate(char inValue*, int type){
 
 
 
-unsigned long poisonRefBool;
-long globalTimestamp;
-
-unsigned long currentScopeCounter;
-unsigned long inStructBool;
-
-struct symbolEntry* symbolStackPointer;
-struct symbolEntry* symbolBasePointer;
-
-unsigned long dagSize;
-struct genericNode** DAG;
 
 
 void initNodes(){
@@ -301,7 +328,7 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 					goto BADCONST;	//const is different value than we need;
 			
 			}else if(in->modString[0] != REF_MOD){ //it's a not a immediate, nor a reference, double define
-				fprintf(stderr, "ERROR: DOUBLE DEFINE: %s, ON LINE %d\n", in->name, GLOBAL_LINE_NUMBER);
+				fprintf(stderr, "ERROR: DOUBLE DEFINE: %s, ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER);
 				exit(1);
 			
 			}
