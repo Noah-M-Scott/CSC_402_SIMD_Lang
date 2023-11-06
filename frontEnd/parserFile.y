@@ -24,6 +24,10 @@ FILE *outFile;
 %token LTLT_OP
 %token GTGT_OP
 %token EQUEQU_OP
+%token UGT_OP
+%token ULT_OP
+%token UGTEQU_OP
+%token ULTEQU_OP
 %token GTEQU_OP
 %token LTEQU_OP
 %token NOTEQU_OP
@@ -31,7 +35,6 @@ FILE *outFile;
 %token ANDAND_OP
 %token OROR_OP
 %token SIZEOF_OP
-%token COLCOL_OP
 %token DOTDOTDOT_OP
 
 %token ADD_BAR_OP
@@ -41,13 +44,9 @@ FILE *outFile;
 %token GLOBAL_OP
 %token VOID_OP
 %token BYTE_OP
-%token UBYTE_OP
 %token WORD_OP
-%token UWORD_OP
 %token LONG_OP
-%token ULONG_OP
 %token QUAD_OP
-%token UQUAD_OP
 %token SINGLE_OP
 %token DOUBLE_OP
 %token STRUCT_OP
@@ -116,14 +115,16 @@ FILE *outFile;
 %nterm <struct genericNode*> statement
 %nterm <struct genericNode*> scope
 
-
 %%
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 input:
 	  %empty
 	| input initial_expression
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 constant:
 	  DECIMAL	{ $$ = registerNode(registerSymbol(createImmediate($1, 0)));  }
 	| FLOAT		{ $$ = registerNode(registerSymbol(createImmediate($1, 3)));  }
@@ -131,235 +132,216 @@ constant:
 	| HEX		{ $$ = registerNode(registerSymbol(createImmediate($1, 1)));  }
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 initial_expression: 
-	  IDENT			{ $$ = registerNode(registerSymbol(createRef($1))); }
-	| constant		{ $$ = $1; }
-	| STRING_LIT		{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); }
-	| DOTDOTDOT_OP		{ struct genericNode* temp = malloc(sizeof(struct genericNode)); 
-				  temp->childCount = 0; 
-				  temp->nodeSize = sizeof(struct genericNode); 
-				  temp->type = DOTDOT_TYPE;
-				  memset(temp->modString, NONE_MOD, 32);
-				  $$ = registerNode(); 
-				}
-	
-	| '(' expression ')'	{ $$ = $2; }
-	| initializer_list	{ $$ = $1; }
-	| '&' IDENT		{ $$ = registerNode(registerSymbol(createImmediate($1, 5))); }
-	| SIZEOF_OP '(' type_name ')'	{ $$ = registerNode(registerSymbol(createSizeOf($1, 0))); }
-	| SIZEOF_OP '(' IDENT ')'	{ $$ = registerNode(registerSymbol(createSizeOf($1, 1))); }
+	  IDENT				{ $$ = registerNode(registerSymbol(createRef($1))); }
+	| constant			{ $$ = $1; }
+	| STRING_LIT			{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); }
+	| DOTDOTDOT_OP			{ struct genericNode* temp = malloc(sizeof(struct genericNode)); 
+					  temp->childCount = 0; 
+					  temp->nodeSize = sizeof(struct genericNode); 
+					  temp->type = DOTDOTDOT_TYPE;			// '...' is a void pointer to stack base + offset
+					  memset(temp->modString, NONE_MOD, 32);
+					  temp->modString[0] = VOID_BASE;
+					  temp->modString[1] = POINTER_POSTFIX;	//create a void pointer
+					  $$ = registerNode(); 
+					}
+	| '(' expression ')'		{ $$ = $2; }
+	| initializer_list		{ $$ = $1; }
+	| '&' IDENT			{ $$ = registerNode(registerSymbol(createImmediate($2, 5))); }
+	| SIZEOF_OP '(' type_name ')'	{ $$ = registerNode(registerSymbol(createSizeOf($3, 0))); }
+	| SIZEOF_OP '(' IDENT ')'	{ $$ = registerNode(registerSymbol(createSizeOf($3, 1))); }
 	;
 
-
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 initializer:
 	  constant			{ $$ = $1; }
 	| '{' initializer_list '}'	{ $$ = $2; }
 	;
 
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 initializer_list:
-	  initializer	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-			  temp->type = INIT_LIST_TYPE;
-			  memcpy(temp->modString, $1->modString, 32);
-			  temp->childCount = 1;
-			  temp->children[0] = $1;
-			  $$ = registerNode(temp);
-			}
-
-	| initializer_list ',' initializer	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-			  			  temp->type = INIT_LIST_TYPE;
-						  memcpy(temp->modString, $3->modString, 32);
-						  compareTypes($1, $3);
+	  initializer				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = INIT_LIST_TYPE;
+						  memcpy(temp->modString, $1->modString, 32);
 						  temp->childCount = 1;
-						  temp->children[0] = $3;
-						  $$ = appendAChild($1, registerNode(temp));
+						  temp->children[0] = $1;
+						  $$ = registerNode(temp);	//create the center node of the list
+						}
+	| initializer_list ',' initializer	{ compareTypes($1, $3);	     //make sure it matches the initList type
+						  $$ = appendAChild($1, $3); //add another branch to the head
 						}
 	;
 
-
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 postfix_operation:
-	  initial_expression			{ $$ = $1; }
-	| postfix_operation '[' expression ']'	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-						  temp->type = INDEX_TYPE;
-						  memcpy(temp->modString, $1->modString, 32);
-						  temp->childCount = 1;
-						  temp->children[0] = $3;
-						  excludeFloats($3);
-						  $$ = registerNode(fetchMod(temp));
-						}	
-							
-	| '&' postfix_operation '[' expression ']'	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+	  initial_expression				{ $$ = $1; }
+	| postfix_operation '[' expression ']'		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*)*2);
 							  temp->type = INDEX_TYPE;
+							  memcpy(temp->modString, $1->modString, 32);
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = $3;
+							  excludeFloats($3);
+							  $$ = registerNode(fetchMod(temp));
+							}			
+	| '&' postfix_operation '[' expression ']'	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*)*2);
+							  temp->type = AMP_INDEX_TYPE;
 							  memcpy(temp->modString, $2->modString, 32);
-							  temp->childCount = 1;
-							  temp->children[0] = $4;
+							  temp->childCount = 2;
+							  temp->children[0] = $2;
+							  temp->children[1] = $4;
 							  excludeFloats($4);
 							  $$ = registerNode(temp);
 							}
-
-	| postfix_operation '(' ')'	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = CALL_TYPE;
-					  memcpy(temp->modString, $1->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $1;
-					  requireFunctions($1);
-					  $$ = registerNode(fetchMod(temp));
-					} 
-
-	| postfix_operation '(' argument_list ')' { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-						    temp->type = CALL_PARAM_TYPE;
-						    memcpy(temp->modString, $1->modString, 32);
-						    temp->childCount = 2;
-						    temp->children[0] = $1;
-						    temp->children[1] = $3;
-						    requireFunctions($1);
-						    $$ = registerNode(fetchMod(temp));
-						  }
-
-	| postfix_operation '<' permute_list '>' { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-						   temp->type = VEC_PERMUTE_TYPE;
-						   memcpy(temp->modString, $1->modString, 32);
-						   temp->childCount = 2;
-						   temp->children[0] = $1;
-						   temp->children[1] = $3;
-						   compareTypes($1, $3);
-						   $$ = registerNode(temp);
-						 }
-
-	| postfix_operation '<' constant '>'  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-						temp->type = VEC_INDEX_TYPE;
-						memcpy(temp->modString, $1->modString, 32);
-						temp->childCount = 2;
-						temp->children[0] = $1;
-						temp->children[1] = $3;
-						excludeFloats($3);
-						$$ = registerNode(undoVector(temp));
-					      }
-
-	| postfix_operation '.' IDENT { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-					temp->type = DOT_TYPE;
-					memcpy(temp->modString, $1->modString, 32);
-					temp->childCount = 2;
-					temp->children[0] = $1;
-					temp->children[1] = createImmediate($3, 5);
-					$$ = registerNode(fetchMod(temp));
-				      }
-
-	| postfix_operation ARROW_OP IDENT    { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-						temp->type = ARROW_TYPE;
-						memcpy(temp->modString, $1->modString, 32);
-						temp->childCount = 2;
-						temp->children[0] = $1;
-						temp->children[1] = createImmediate($3, 5);
-						$$ = registerNode(fetchMod(temp));
-				 	      }
+	| postfix_operation '(' ')'			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+							  temp->type = CALL_TYPE;
+							  memcpy(temp->modString, $1->modString, 32);
+							  temp->childCount = 1;
+							  temp->children[0] = $1;
+							  requireFunctions($1);
+							  $$ = registerNode(fetchMod(temp));
+							} 
+	| postfix_operation '(' argument_list ')'	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*)*2);
+							  temp->type = CALL_PARAM_TYPE;
+							  memcpy(temp->modString, $1->modString, 32);
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = $3;
+							  requireFunctions($1);
+							  checkArgumentTypes($1, $3);
+							  $$ = registerNode(fetchMod(temp));
+							}
+	| postfix_operation '<' permute_list '>' 	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							  temp->type = VEC_PERMUTE_TYPE;
+							  memcpy(temp->modString, $1->modString, 32);
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = $3;
+							  compareTypes($1, $3);
+							  $$ = registerNode(temp);
+							}
+	| postfix_operation '<' constant '>'  		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							  temp->type = VEC_INDEX_TYPE;
+							  memcpy(temp->modString, $1->modString, 32);
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = $3;
+							  excludeFloats($3);
+							  $$ = registerNode(undoVector(temp));
+						        }
+	| postfix_operation '.' IDENT 			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							  temp->type = DOT_TYPE;
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = registerNode(createStructRef($1, $3));	//get symbol from struct
+							  memcpy(temp->modString, temp->children->modString, 32);	//get type from the symbol
+							  $$ = registerNode(temp);
+						        }
+	| postfix_operation ARROW_OP IDENT    		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							  temp->type = ARROW_TYPE;
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = registerNode(createStructRef(fetchMod($1), $3));	//get symbol from struct
+							  memcpy(temp->modString, temp->children->modString, 32);	//get type from the symbol
+							  $$ = registerNode(temp);
+							}
 	;
 
-
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 permute_list:
-	  constant				{ excludeFloats($1); $$ = $1; }
-	| permute_list ',' initial_expression	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+	  constant				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						  temp->type = PERMUTE_LIST_TYPE;
 						  memcpy(temp->modString, $1->modString, 32);
-						  temp->childCount = 2;
+						  temp->childCount = 1;
 						  temp->children[0] = $1;
-						  temp->children[1] = $3;
-						  excludeFloats($3);
-						  $$ = registerNode(temp);
+						  excludeFloats($1);		//no indexing with floats
+						  $$ = registerNode(temp);	//create head, like initList
+				 	      	}
+	| permute_list ',' initial_expression	{ excludeFloats($3);
+						  $$ = appendAChild($1, $3);	//add the constant to the list
 				 	      	}
 	;
 
-
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 argument_list:
-	  assignment_operation			 { $$ = $1; }
-
-	| argument_list ',' assignment_operation { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-						  temp->type = ARGUMENT_LIST_TYPE;
-						  memcpy(temp->modString, $1->modString, 32);
-						  temp->childCount = 2;
-						  temp->children[0] = $1;
-						  temp->children[1] = $3;
-						  $$ = registerNode(temp);
+	  assignment_operation			 { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						   temp->type = ARGUMENT_LIST_TYPE;
+						   memset(temp->modString, NONE_MOD, 32);
+						   temp->childCount = 1;
+						   temp->children[0] = $1;
+						   $$ = registerNode(temp);	//create the head, like above
 				 	       	 }
+	| argument_list ',' assignment_operation { $$ = appendAChild($1, $3); /* add a argument to the list */ }
 	;
 
 
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 prefix_operation:
-	  postfix_operation		{ $$ = $1; }
-	| '~' prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = NOT_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  excludeFloats($2);
-					  $$ = registerNode(temp);
-			 	       	}
-
-	| '!' prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = LOGICAL_NOT_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  excludeFloats($2);
-					  $$ = registerNode(temp);
-			 	       	}
-
-	| '+' prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = ABS_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  $$ = registerNode(temp);
-			 	       	}
-
-	| '-' prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = NEG_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  $$ = registerNode(temp);
-			 	       	}
-
-	| '*' prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = DEREF_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  requirePointers($2);
-					  $$ = registerNode(temp);
-			 	       	}
-
-	| ADD_BAR_OP prefix_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = RUN_SUM_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  requireVecs($2);
-					  $$ = registerNode(temp);
-			 	       	}
-
-	| SUB_BAR_OP prefix_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = RUN_DIF_TYPE;
-					  memcpy(temp->modString, $2->modString, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  requireVecs($2);
-					  $$ = registerNode(temp);
-			 	       	}
-
+	  postfix_operation			{ $$ = $1; }
+	| '~' prefix_operation			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = NOT_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  excludeFloats($2);		//no bitwise on floats
+						  $$ = registerNode(temp);
+			 		       	}
+	| '!' prefix_operation			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = LOGICAL_NOT_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  excludeFloats($2);		//no logic on floats
+						  $$ = registerNode(temp);
+				 	       	}
+	| '+' prefix_operation			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = ABS_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  $$ = registerNode(temp);
+			 		       	}
+	| '-' prefix_operation			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = NEG_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  $$ = registerNode(temp);
+				 	       	}
+	| '*' prefix_operation			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = DEREF_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  requirePointers($2);			//require a pointer of array here
+						  $$ = registerNode(fetchMod(temp));	//undo the pointer/array
+				 	       	}
+	| ADD_BAR_OP prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = RUN_SUM_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  requireVecs($2);		//require vecs for running sum
+						  $$ = registerNode(temp);
+				 	       	}
+	| SUB_BAR_OP prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+						  temp->type = RUN_DIF_TYPE;
+						  memcpy(temp->modString, $2->modString, 32);
+						  temp->childCount = 1;
+						  temp->children[0] = $2;
+						  requireVecs($2);		//require vecs for running dif
+						  $$ = registerNode(temp);
+			 	      	 	}
 	| '(' type_name ')' prefix_operation    { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						  temp->type = PUNN_TYPE;
 						  memcpy(temp->modString, $2->modString, 32);
 						  temp->childCount = 1;
 						  temp->children[0] = $4;
-						  $$ = registerNode(temp);
+						  $$ = registerNode(temp);	//for both of these, it's fine not to track the type_name; we don't need it
 			 		       	}
-
 	| type_name '(' prefix_operation ')'    { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						  temp->type = CONV_TYPE;
 						  memcpy(temp->modString, $2->modString, 32);
@@ -370,7 +352,7 @@ prefix_operation:
 	;
 
 
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 multdiv_operation:
 	  prefix_operation				{ $$ = $1; }
 	| multdiv_operation '*' prefix_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
@@ -382,7 +364,6 @@ multdiv_operation:
 							  compareTypes($1, $3);
 							  $$ = registerNode(temp);
 			 			       	}
-
 	| multdiv_operation '/' prefix_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 							  temp->type = DIV_TYPE;
 							  memcpy(temp->modString, $1->modString, 32);
@@ -404,6 +385,8 @@ multdiv_operation:
 			 			       	}
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 addsub_operation:
 	  multdiv_operation				{ $$ = $1; }
 	| addsub_operation '+' multdiv_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
@@ -428,6 +411,8 @@ addsub_operation:
 
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 shift_operation:
 	  addsub_operation				{ $$ = $1; }
 	| shift_operation GTGT_OP addsub_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
@@ -451,6 +436,7 @@ shift_operation:
 			 			       	}
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 relation_operation:
 	  shift_operation				{ $$ = $1; }
 
@@ -543,70 +529,235 @@ relation_operation:
 			 					       	}
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 equality_operation:
 	  relation_operation				{ $$ = $1; }
-	| equality_operation EQUEQU_OP relation_operation
-	| equality_operation NOTEQU_OP relation_operation
-	| equality_operation EQUEQU_OP relation_operation ':' expression
-	| equality_operation NOTEQU_OP relation_operation ':' expression
+
+	| equality_operation EQUEQU_OP relation_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+								  temp->type = EQU_EQU_TYPE;
+								  memcpy(temp->modString, $1->modString, 32);
+								  temp->childCount = 2;
+								  temp->children[0] = $1;
+								  temp->children[1] = $3;
+								  compareTypes($1, $3);
+								  $$ = registerNode(temp);
+			 				       	}
+
+	| equality_operation NOTEQU_OP relation_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+								  temp->type = NOT_EQU_TYPE;
+								  memcpy(temp->modString, $1->modString, 32);
+								  temp->childCount = 2;
+								  temp->children[0] = $1;
+								  temp->children[1] = $3;
+								  compareTypes($1, $3);
+								  $$ = registerNode(temp);
+			 				       	}
+
+	| equality_operation EQUEQU_OP relation_operation ':' expression { struct genericNode* temp = malloc(sizeof(struct genericNode)+sizeof(struct genericNode*)*3);
+									   temp->type = EQU_EQU_TERN_TYPE;
+									   memcpy(temp->modString, $1->modString, 32);
+									   temp->childCount = 3;
+									   temp->children[0] = $1;
+									   temp->children[1] = $3;
+									   temp->children[2] = $5;
+									   compareTypes($1, $3);
+									   compareTypes($3, $5);
+									   $$ = registerNode(temp);
+			 					       	 }
+
+	| equality_operation NOTEQU_OP relation_operation ':' expression { struct genericNode* temp = malloc(sizeof(struct genericNode)+sizeof(struct genericNode*)*3);
+									   temp->type = NOT_EQU_TERN_TYPE;
+									   memcpy(temp->modString, $1->modString, 32);
+									   temp->childCount = 3;
+									   temp->children[0] = $1;
+									   temp->children[1] = $3;
+									   temp->children[2] = $5;
+									   compareTypes($1, $3);
+									   compareTypes($3, $5);
+									   $$ = registerNode(temp);
+			 					       	 }
+
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bitwise_and_operation:
 	  equality_operation				{ $$ = $1; }
-	| bitwise_and_operation '&' equality_operation
+
+	| bitwise_and_operation '&' equality_operation	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							  temp->type = AND_TYPE;
+							  memcpy(temp->modString, $1->modString, 32);
+							  temp->childCount = 2;
+							  temp->children[0] = $1;
+							  temp->children[1] = $3;
+							  compareTypes($1, $3);
+							  $$ = registerNode(temp);
+			 			       	}
 	;
 
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bitwise_eor_operation:
-	  bitwise_and_operation				{ $$ = $1; }
-	| bitwise_eor_operation '^' bitwise_and_operation
+	  bitwise_and_operation				  { $$ = $1; }
+
+	| bitwise_eor_operation '^' bitwise_and_operation { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							    temp->type = EOR_TYPE;
+							    memcpy(temp->modString, $1->modString, 32);
+							    temp->childCount = 2;
+							    temp->children[0] = $1;
+							    temp->children[1] = $3;
+							    compareTypes($1, $3);
+							    $$ = registerNode(temp);
+			 			       	  }
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 bitwise_or_operation:
-	  bitwise_eor_operation				{ $$ = $1; }
-	| bitwise_or_operation '|' bitwise_eor_operation
+	  bitwise_eor_operation				 { $$ = $1; }
+
+	| bitwise_or_operation '|' bitwise_eor_operation { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							   temp->type = OR_TYPE;
+							   memcpy(temp->modString, $1->modString, 32);
+							   temp->childCount = 2;
+							   temp->children[0] = $1;
+							   temp->children[1] = $3;
+							   compareTypes($1, $3);
+							   $$ = registerNode(temp);
+			 			       	 }
+
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 mesh_operation:
-	  bitwise_or_operation				{ $$ = $1; }
-	| mesh_operation '~' bitwise_or_operation
+	  bitwise_or_operation			  { $$ = $1; }
+
+	| mesh_operation '~' bitwise_or_operation { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+						    temp->type = MESH_TYPE;
+						    memcpy(temp->modString, $1->modString, 32);
+						    temp->childCount = 2;
+						    temp->children[0] = $1;
+						    temp->children[1] = $3;
+						    compareTypes($1, $3);
+						    $$ = registerNode(temp);
+					       	  }
+
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 logical_and_operation:
-	  mesh_operation				{ $$ = $1; }
-	| logical_and_operation ANDAND_OP mesh_operation
+	  mesh_operation				  { $$ = $1; }
+
+	| logical_and_operation ANDAND_OP mesh_operation  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							    temp->type = LOGIC_AND_TYPE;
+							    memcpy(temp->modString, $1->modString, 32);
+							    temp->childCount = 2;
+							    temp->children[0] = $1;
+							    temp->children[1] = $3;
+							    compareTypes($1, $3);
+							    $$ = registerNode(temp);
+						       	  }
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 logical_or_operation:
 	  logical_and_operation				{ $$ = $1; }
-	| logical_or_operation OROR_OP logical_and_operation
+
+	| logical_or_operation OROR_OP logical_and_operation	  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+								    temp->type = LOGIC_OR_TYPE;
+								    memcpy(temp->modString, $1->modString, 32);
+								    temp->childCount = 2;
+								    temp->children[0] = $1;
+								    temp->children[1] = $3;
+								    compareTypes($1, $3);
+								    $$ = registerNode(temp);
+							       	  }
+
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ternary_operation:
 	  logical_or_operation				{ $$ = $1; }
-	| logical_or_operation '?' expression ':' ternary_operation
+	| logical_or_operation '?' expression ':' ternary_operation	 { struct genericNode* temp = malloc(sizeof(struct genericNode)+sizeof(struct genericNode*)*3);
+									   temp->type = TERN_TYPE;
+									   memcpy(temp->modString, $3->modString, 32);
+									   temp->childCount = 3;
+									   temp->children[0] = $1;
+									   temp->children[1] = $3;
+									   temp->children[2] = $5;
+									   compareTypes($3, $5);
+									   $$ = registerNode(temp);
+			 					       	 }
+
 	;
 
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 assignment_operation:
 	  ternary_operation				{ $$ = $1; }
-	| prefix_operation '=' assignment_operation
+
+	| {poisonRefBool = 1;} prefix_operation {poisonRefBool = 0;} '=' assignment_operation	  
+							  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							    temp->type = EQU_TYPE;
+							    memcpy(temp->modString, $1->modString, 32);
+							    temp->childCount = 2;
+							    temp->children[0] = $1;
+							    temp->children[1] = $3;
+							    compareTypes($1, $3);
+							    $$ = registerNode(temp);
+						       	  }
 	;
 
+
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 comma_operation:
-	  assignment_operation				{ $$ = $1; }
-	| comma_operation ',' assignment_operation
+	  assignment_operation				  { $$ = $1; }
+
+	| comma_operation ',' assignment_operation  	  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+							    temp->type = COMMA_TYPE;
+							    memcpy(temp->modString, $3->modString, 32);
+							    temp->childCount = 2;
+							    temp->children[0] = $1;
+							    temp->children[1] = $3;
+							    $$ = registerNode(temp);
+						       	  }
 	;
 
+
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 expression:
 	  comma_operation				{ $$ = $1; }
 	;
 
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 declaration:
-	  hint_modifier type_name declaration_init_list ';'
+	  hint_modifier type_name declaration_init_list ';' { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 3);
+							      temp->type = DECLR_TYPE;
+							      memset(temp->modString, NONE_MOD, 32);
+							      temp->childCount = 3;
+							      temp->children[0] = $1;
+							      temp->children[1] = $2;
+							      temp->children[2] = $3;
+							      $$ = registerNode(temp);
+						       	    }
+
 	| hint_modifier type_name IDENT scope
 	| type_name declaration_init_list ';'
 	| type_name IDENT scope
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 declaration_init_list:
 	  IDENT '=' expression
 	| IDENT
@@ -614,12 +765,14 @@ declaration_init_list:
 	| declaration_init_list ',' IDENT
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 hint_modifier:
 	  EXTERN_OP	
 	| GLOBAL_OP
 	| CONST_OP
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 base_type:
 	  VOID_OP
 	| BYTE_OP
@@ -635,6 +788,7 @@ base_type:
 	| STRUCT_OP IDENT
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 base_type_postfix:
 	  base_type
 	| base_type '<' constant '>'
@@ -642,11 +796,13 @@ base_type_postfix:
 	| SHARED_OP base_type '<' constant '>'	
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 array_modifier:
 	  base_type_postfix '[' constant ']'
 	| pointer_modifier '[' constant ']'
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pointer_modifier:
 	  base_type_postfix '*'
 	| pointer_modifier  '*'
@@ -658,6 +814,7 @@ pointer_modifier:
 	| function_modifier SHARED_OP '*'
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function_modifier:
 	  base_type_postfix '(' parameter_list ')'
 	| pointer_modifier  '(' parameter_list ')'
@@ -667,6 +824,7 @@ function_modifier:
 	| pointer_modifier  '(' DOTDOTDOT_OP ')'
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 type_name:
 	  base_type_postfix
 	| function_modifier
@@ -675,6 +833,7 @@ type_name:
 	;
 
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 parameter_list:
 	  type_name
 	| type_name IDENT
@@ -682,6 +841,7 @@ parameter_list:
 	| parameter_list ',' type_name IDENT
 	;
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 statement:
 	  ';'
 	| expression ';'
@@ -714,7 +874,7 @@ statement:
 	| FOR_OP '(' declaration expression ';' expression ')' statement
 	;
 
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 scope:
 	  '{' statement
 	| scope statement

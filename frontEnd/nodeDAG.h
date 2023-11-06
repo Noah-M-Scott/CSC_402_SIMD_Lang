@@ -32,6 +32,10 @@ enum {
 	NOT_EQU_TERN_TYPE,
 	LT_TYPE,
 	GT_TYPE,
+	ULT_TYPE,
+	UGT_TYPE,
+	ULT_EQU_TYPE,
+	UGT_EQU_TYPE,
 	LT_EQU_TYPE,
 	GT_EQU_TYPE,
 	LT_TERN_TYPE,
@@ -73,13 +77,9 @@ enum {
 	CONST_HINT,
 	VOID_BASE,
 	BYTE_BASE,
-	UBYTE_BASE,
 	WORD_BASE,
-	UWORD_BASE,
 	LONG_BASE,
-	ULONG_BASE,
 	QUAD_BASE,	//also used to mark immediate integer data
-	UQUAD_BASE,
 	SINGLE_BASE,
 	DOUBLE_BASE,	//also used to mark immediate floating data
 	STRUCT_BASE,
@@ -207,19 +207,19 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
 
 		else if( inputVal < 256 && inputVal > -1)
-			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = UBYTE_BASE);
+			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
 
 		else if( inputVal < 32768 && inputVal > -32769)
 			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
 
 		else if( inputVal < 65536 && inputVal > -1)
-			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = UWORD_BASE);
+			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
 
 		else if( inputVal < 2147483648 && inputVal > -2147483649)
 			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
 
 		else if( inputVal < 4294967296 && inputVal > -1)
-			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = ULONG_BASE);
+			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
 		
 		else
 			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = QUAD_BASE);
