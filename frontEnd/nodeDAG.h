@@ -463,7 +463,7 @@ SHAREDSKIP:;
 
 //adds a new child to a node, but since reallocing a node more often than not loses it's place in memory
 //we have to go through and update all instances of it's old pointer
-void appendAChild(struct genericNode* p, struct genericNode* c){
+struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
 
 	p->nodeSize += sizeof(struct genericNode*);
 	p->childCount++;
@@ -481,8 +481,8 @@ void appendAChild(struct genericNode* p, struct genericNode* c){
 		}
 
 
-	p = newHome;
-	p->children[p->childCount - 1] = c;
+	newHome->children[p->childCount - 1] = c;
+	return newHome;
 }
 
 
