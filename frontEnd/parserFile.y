@@ -1060,8 +1060,8 @@ statement:
 								  temp->children[0] = $2;
 								  $$ = registerNode(temp);
 								}
-	| IDENT ':' statement
-	| GOTO_OP IDENT ';'
+	| IDENT ':' statement					{ $$ = appendChild(registerNode(registerSymbol(createLabel($1))), $3); }
+	| GOTO_OP IDENT ';'					{ $$ = registerNode(createLabelJump($2)); }
 
 	| FOR_OP '(' {openScope();}            ';'            ';'            ')' statement	
 								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
