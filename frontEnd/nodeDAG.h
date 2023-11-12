@@ -4,6 +4,11 @@
 enum {
 	SYMBOL_TYPE, 
 	SCOPE_TYPE,
+	INIT_LIST_TYPE,
+	DOTDOTDOT_TYPE,
+	ARGUMENT_LIST_TYPE,
+	PERMUTE_LIST_TYPE,
+	DEC_LIST_TYPE,
 	FOR_TYPE,
 	GOTO_TYPE,
 	LABEL_TYPE,
@@ -54,18 +59,16 @@ enum {
 	RUN_SUM_TYPE,
 	RUN_DIF_TYPE,
 	DEREF_TYPE,
-	REF_TYPE,
 	NEG_TYPE,
 	ABS_TYPE,
 	LOGICAL_NOT_TYPE,
 	NOT_TYPE,
-	BLOCK_TYPE,
-	ARROW_TYPE,
-	DOT_TYPE,
 	PERMUTE_TYPE,
+	VEC_INDEX_TYPE,
 	CALL_TYPE,
 	CALL_PARAM_TYPE,
-	INDEX_TYPE
+	INDEX_TYPE,
+	AMP_INDEX_TYPE
 };
 
 
@@ -87,7 +90,8 @@ enum {
 	POINTER_POSTFIX,
 	FUNCTION_POSTFIX,
 	CLOSE_FUNCTION_POSTFIX,
-	SHARED_MOD
+	SHARED_MOD,
+	VECTOR_MOD
 };
 
 
@@ -108,9 +112,9 @@ enum {
 /*
  	modString of the form:
 
-	HINT SHARED_MOD BASETYPE            ARRAY_POSTFIX                               ... NONE_MOD
-				 SHARED_MOD POINTER_POSTFIX
-				            FUNCTION_POSTFIX ... CLOSE_FUNCTION_POSTFIX
+	HINT SHARED_MOD VECTOR_MOD SIZE BASETYPE            ARRAY_POSTFIX                               ... NONE_MOD
+				                 SHARED_MOD POINTER_POSTFIX
+				                            FUNCTION_POSTFIX ... CLOSE_FUNCTION_POSTFIX
 	
 	
 */
@@ -127,7 +131,6 @@ struct genericNode{
 	long timestamp;
 	char modString[32];
 	long type;
-	long nodeSize;
 	long childCount;
 	struct genericNode* children[];		//something awful here: on a realoc, to expand chldrn list, you have to fix all the ptrs to this node...
 };
@@ -150,6 +153,9 @@ struct symbolEntry{
 unsigned long inStructBool;
 unsigned long inFunctionParamBool;
 unsigned long poisonRefBool;
+unsigned long globalRunningSize;
+int globalTypeIndex;
+char globalIPT[32];
 long globalTimestamp;
 
 unsigned long currentScopeCounter;
@@ -163,9 +169,207 @@ struct genericNode** DAG;
 
 
 
+void pushTypeIndex(){
+
+}
+
+
+void copyAndPopTypeIndex(char* dest, char* src){
+
+}
+
+
+
+//strict type compare (allow scalling ints up)
+void compareTypes(struct genericNode* a, struct genericNode* b){
+	
+	int hintSkipA = 0;
+	int hintSkipB = 0;
+
+	if( a->modString[0] == GLOBAL_HINT || a->modString[0] == EXTERN_HINT || a->modString[0] == CONST_HINT )
+		hintSkipA = 1;
+
+	if( b->modString[0] == GLOBAL_HINT || b->modString[0] == EXTERN_HINT || b->modString[0] == CONST_HINT )
+		hintSkipB = 1;
+
+	if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
+		return;
+
+	fprintf(stderr, "ERR: TYPE MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
+	exit(1);
+}
+
+
+//make sure the argument types match whats expected (allow scalling ints up)
+void checkArgumentTypes(struct genericNode* function, struct genericNode* param){
+
+
+	//find i start
+	int i = 31;
+	for(; i > -1; i--)
+		if( function->modString[i] == FUNCTION_POSTFIX )
+			break;
+
+	for(int j = 0, w = 0; w < param->childCount; i++){
+		
+		if(param->children[w]->modString[j] == GLOBAL_HINT || param->children[w]->modString[j] == EXTERN_HINT || param->children[w]->modString[j] == CONST_HINT)
+			j++; //skip the hint section
+
+		if(pram->children[w]->modString[j] == NONE_TYPE){
+			j = 0; 
+			w++; //next child
+		}
+
+		if(param->children[w]->modString[j] == function->modString[i]){
+			j++;
+			continue; //skip the fail fallthrough
+		}
+
+		//fail fallthrough
+		fprintf(stderr, "ERR: ARGUMENT MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
+		exit(1);
+	}
+}
+
+//make sure vecs are same length
+void checkLengths(struct genericNode* a, struct genericNode* b){
+	
+	char lA = 0;
+	char lB = 0;
+
+	for(int i = 0; i < 32; i++)
+		if( a->modString[i] == VECTOR_MOD )
+			lA = a->modString[i + 1];
+		else if( b->modString[i] == VECTOR_MOD )
+			lB = b->modString[i + 1];
+	
+	if(lA == lB)
+		return;
+	
+	//fail fallthrough
+	fprintf(stderr, "ERR: VECTOR LENGTH MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
+	exit(1);
+}
+
+
+//enforce pointer/array
+void enforcePointer(){
+
+}
+
+//ban floats and vectors
+void enforceScalerInts(){
+
+}
+
+//require vectors
+void requireVecs(){
+
+}
+
+//enforce scope nesting is zero
+void enforceZeroScope(){
+
+}
+
+
+
+void excludeFunctionsType(char* in){
+
+}
+
+
+void requireFunctionsType(char* in){
+
+
+}
+
+
+
+//make sure the type isn't a float
+void excludeFloats(struct genericNode* in){
+
+	for(int i = 0; i < 32; i++)
+		if(in->modString[i] == SINGLE_BASE || in->modString[i] == DOUBLE_BASE){
+			fprintf(stderr, "ERR: FLOAT USED WHERE FLOATS ARE BANNED, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);	
+		}
+
+}
+
+
+//require most recent mod to be function
+void requireFunctions(struct genericNode* in){
+
+	for(int i = 31; i > -1; i--){
+		if(in->modString[i] == CLOSE_FUNCTION_POSTFIX || (in->modString[i] == POINTER_POSTFIX && in->modString[i - 1] == CLOSE_FUNCTION_POSTFIX)){
+			return;
+		}
+
+		if(in->modString[i] != NONE_MOD){
+			fprintf(stderr, "ERR: TYPE MUST BE FUNCTION OR FUNCTION POINTER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
+	}
+}
+
+
+//undo the vector
+struct genericNode* undoVector(struct genericNode* in){
+
+
+}
+
+
+//undo function/function pointer
+struct genericNode* fetchFunc(struct genericNode* in){
+
+	for(int i = 31; i > -1; i--){
+		if(in->modString[i] == CLOSE_FUNCTION_POSTFIX){
+			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
+				in->modString[i] = NONE_MOD;
+			in->modString[i - 1] = NONE_MOD;
+			return;
+		}
+
+		if(in->modString[i] == POINTER_POSTFIX && in->modString[i - 1] == CLOSE_FUNCTION_POSTFIX){
+			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
+				in->modString[i] = NONE_MOD;
+			in->modString[i - 1] = NONE_MOD;
+			return;
+		}
+
+		if(in->modString[i] != NONE_MOD){
+			fprintf(stderr, "ERR: TYPE MUST BE FUNCTION OR FUNCTION POINTER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
+	}
+}
+
+
+//undo leftmost pointer and array mods
+struct genericNode* fetchMod(struct genericNode* in){
+	
+	for(int i = 31; i > -1; i--){
+		if(in->modString[i] == POINTER_POSTFIX || in->modString[i] == ARRAY_POSTFIX){
+			in->modString[i] = NONE_MOD;
+			return;
+		}
+
+		if(in->modString[i] != NONE_MOD){
+			fprintf(stderr, "ERR: TYPE CANNOT BE DEREFERENCED, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
+	}
+}
+
+
+
+
+
 //creates a incomplete symbol node, marks a ref
 struct symbolEntry* createRef(char* inName){
-	
+
 	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 	strcpy(temp->name, inName);
 	memset(temp->modString, NONE_MOD, 32);
@@ -259,7 +463,7 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 
 		strcpy( temp->constValue, inValue );
 		
-		//find name to copy modString, append a star
+		//find name to copy modString, append a star; but don't support functions
 		struct symbolEntry* current = symbolStackPointer;
 		while(current != NULL){
 			if(strcmp(inValue, current->name) == 0){ //same name			
@@ -313,6 +517,8 @@ void initNodes(){
 // take in an unregistered symbol, register it, produce a unregistered node
 struct genericNode* registerSymbol(struct symbolEntry* in){
 	
+	//TODO: have a special thing for function pointers
+
 	//see if it's an immediate
 	long immediateCheck = 0;
 	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but it's the internal way of marking immediates
@@ -336,7 +542,6 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 			//otherwise it's a valid ref, swap it out with the right symbol
 			struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ); //create a pointer to it
 			temp->childCount = 1;
-			temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 			temp->type = SYMBOL_TYPE;
 			temp->children[0] = (struct genericNode*)current;
 			
@@ -368,7 +573,6 @@ BADCONST:;
 
 	struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ); //create a pointer to it
 	temp->childCount = 1;
-	temp->nodeSize = sizeof(struct genericNode) + sizeof(struct genericNode*);
 	temp->type = SYMBOL_TYPE;
 	temp->children[0] = (struct genericNode*)in;
 	
@@ -392,6 +596,19 @@ void closeScope(){
 
 
 
+void openFalseScope(){
+	symbolStackPointer->baseStore = symbolBasePointer;
+	symbolBasePointer = symbolStackPointer;
+	currentScopeCounter++;
+}
+
+void closeFalseScope(){
+	currentScopeCounter--;
+	symbolStackPointer = symbolBasePointer;
+	symbolBasePointer = symbolStackPointer->baseStore;
+}
+
+
 //assumption: nodes are registered one at a time
 //this is likely true
 //
@@ -399,8 +616,8 @@ void closeScope(){
 
 static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode* b){
 	
-	if(a->nodeSize == b->nodeSize)
-		if(memcmp(a, b, a->nodeSize) == 0){  //they're the same
+	if(a->childCount == b->childCount)
+		if(memcmp(a, b, a->childCount * sizeof(struct genericNode*) + sizeof(struct genericNode)) == 0){  //they're the same
 			for(int i = 0; i < b->childCount; i++) //check the children's timestamps
 				if(b->children[i]->timestamp > b->timestamp) //timestamp error
 					return NULL;
@@ -414,6 +631,10 @@ static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode
 	return NULL;
 }
 
+
+struct genericNode* registerNodeFunction(struct genericNode* in){
+
+}
 
 
 struct genericNode* registerNode(struct genericNode* in){
@@ -465,7 +686,6 @@ SHAREDSKIP:;
 //we have to go through and update all instances of it's old pointer
 struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
 
-	p->nodeSize += sizeof(struct genericNode*);
 	p->childCount++;
 
 	struct genericNode* newHome = realloc(p, p->nodeSize);
