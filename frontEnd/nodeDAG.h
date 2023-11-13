@@ -142,7 +142,6 @@ struct symbolEntry{
 	char modString[32];
 	char constValue[128];			//last const value this symbol was set too, this gets type punned
 	char name[128];
-	long size;				//the size the variable takes up, does not apply for functions
 	struct symbolEntry* baseStore;
 	struct symbolEntry* next;
 	struct genericNode* innerScope;		//the node the specifies the size / internal scope
@@ -169,22 +168,48 @@ struct genericNode** DAG;
 
 
 
-void pushTypeIndex(){
+static int globalTypeIndexStack[16];
+static int globalTypePointer = 0;
 
+
+
+//used for building function (nested) types
+void pushTypeIndex(){
+	globalTypeIndexStack[globalTypePointer++] = globalTypeIndex;
 }
 
 
+//used to exit nested types
 void copyAndPopTypeIndex(char* dest, char* src){
 
+	int temp = globalTypeIndexStack[--globalTypePointer];
+	
+	for(int i = 0; i < globalTypeIndex; i++, temp++)
+		dest[temp] = src[i];
+	
+	globalTypeIndex = temp;
 }
 
 
 
+//produce a int/intvec that matches the length
+void matchLength(char* dest, char* src){
+
+
+}
+
+
+
+
+//strict type compare (allow scalling immediate ints up), pointers interact with quads
 //strict type compare (allow scalling ints up)
 void compareTypes(struct genericNode* a, struct genericNode* b){
 	
 	int hintSkipA = 0;
 	int hintSkipB = 0;
+	int hint2SkipA;
+	int hint2SkipB;
+
 
 	if( a->modString[0] == GLOBAL_HINT || a->modString[0] == EXTERN_HINT || a->modString[0] == CONST_HINT )
 		hintSkipA = 1;
@@ -194,6 +219,32 @@ void compareTypes(struct genericNode* a, struct genericNode* b){
 
 	if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
 		return;
+
+	if( a->modString[hintSkipA] == VECTOR_MOD )
+		hint2SkipA = hintSkipA + 2;
+
+	if( b->modString[hintSkipB] == VECTOR_MOD )
+		hint2SkipB = hintSkipB + 2;
+	
+	if( a->modString[hint2SkipA] < QUAD_BASE && a->modString[hint2SkipA] >= BYTE_BASE  )
+		if( b->modString[hint2SkipB] < QUAD_BASE && b->modString[hint2SkipB] >= BYTE_BASE  )
+			if( b->modString[hint2SkipB] < a->modString[hint2SkipA] ){
+				
+				b->modString[hint2SkipB] = a->modString[hint2SkipA]; //scale up
+				
+				if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
+					return;
+			}
+
+	if( b->modString[hint2SkipB] == SINGLE_BASE && a->modString[hint2SkipA] == DOUBLE_BASE  ){		
+				
+		b->modString[hint2SkipB] = a->modString[hint2SkipA]; //scale up
+				
+		if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
+			return;
+	}
+
+
 
 	fprintf(stderr, "ERR: TYPE MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
 	exit(1);
@@ -225,11 +276,46 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 			continue; //skip the fail fallthrough
 		}
 
+		//integer scale up
+		if(function->modString[i] < QUAD_BASE && function->modString[i] >= BYTE_BASE)
+		if(param->children[w]->modString[j] < QUAD_BASE && param->children[w]->modString[j] >= BYTE_BASE)
+		if(param->children[w]->modString[j] < function->modString[i]){
+			j++;
+			continue; //skip the fail fallthrough
+		}
+
+		//floating scale up
+		if(function->modString[i] == DOUBLE_BASE)
+		if(param->children[w]->modString[j] == SINGLE_BASE){
+			j++;
+			continue; //skip the fail fallthrough
+		}
+
+
 		//fail fallthrough
 		fprintf(stderr, "ERR: ARGUMENT MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
 		exit(1);
 	}
 }
+
+
+
+//move up
+void promoteInts(struct genericNode* in){
+
+
+
+}
+
+
+//move up
+void promoteFloats(struct genericNode* in){
+
+
+
+}
+
+
 
 //make sure vecs are same length
 void checkLengths(struct genericNode* a, struct genericNode* b){
@@ -253,35 +339,76 @@ void checkLengths(struct genericNode* a, struct genericNode* b){
 
 
 //enforce pointer/array
-void enforcePointer(){
+void enforcePointer(struct genericNode* in){
+	for(int i = 31; i > -1; i--){
+		if(in->modString[i] == POINTER_POSTFIX || in->modString[i] == ARRAY_POSTFIX){
+			return;
+		}
 
+		if(in->modString[i] != NONE_MOD){
+			fprintf(stderr, "ERR: TYPE MUST BE ARRAY OR POINTER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
+	}
 }
 
 //ban floats and vectors
-void enforceScalerInts(){
-
+void enforceScalerInts(struct genericNode* in){
+	for(int i = 31; i > -1; i--)
+		if(in->modString[i] == VECTOR_MOD || in->modString[i] == POINTER_POSTFIX || in->modString[i] == FUNCTION_POSTFIX || in->modString[i] == ARRAY_POSTFIX)
+			fprintf(stderr, "ERR: TYPE MUST BE SCALER INTEGER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
 }
 
 //require vectors
-void requireVecs(){
-
+void requireVecs(struct genericNode* in){
+	for(int i = 31; i > -1; i--)
+		if(in->modString[i] == VECTOR_MOD)
+			return;
+	
+	//error fallthrough
+	fprintf(stderr, "ERR: TYPE MUST BE VECTOR, LINE %ld\n", GLOBAL_LINE_NUMBER);
+	exit(1);
 }
+
 
 //enforce scope nesting is zero
 void enforceZeroScope(){
-
+	if(currentScopeCounter != 0){
+		fprintf(stderr, "ERR: SCOPE MUST BE ZERO, LINE %ld\n", GLOBAL_LINE_NUMBER);
+		exit(1);
+	}
 }
 
 
-
+//using type string, exclude functions
 void excludeFunctionsType(char* in){
+	for(int i = 31; i > -1; i--){
+		if(in[i] == CLOSE_FUNCTION_POSTFIX || (in[i] == POINTER_POSTFIX && in[i - 1] == CLOSE_FUNCTION_POSTFIX)){
+			fprintf(stderr, "ERR: TYPE MUST NOT BE FUNCTION OR FUNCTION POINTER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
 
+		if(in[i] != NONE_MOD){
+			return;
+		}
+	}
 }
 
 
+//using type string, force functions
 void requireFunctionsType(char* in){
 
+	for(int i = 31; i > -1; i--){
+		if(in[i] == CLOSE_FUNCTION_POSTFIX || (in[i] == POINTER_POSTFIX && in[i - 1] == CLOSE_FUNCTION_POSTFIX)){
+			return;
+		}
 
+		if(in[i] != NONE_MOD){
+			fprintf(stderr, "ERR: TYPE MUST BE FUNCTION OR FUNCTION POINTER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
+	}
 }
 
 
@@ -317,7 +444,24 @@ void requireFunctions(struct genericNode* in){
 //undo the vector
 struct genericNode* undoVector(struct genericNode* in){
 
+	int i = 0;
+	for(; i < 32; i++)
+		if(in->modString[i] == VECTOR_MOD)
+			goto startShifting;
 
+
+
+	fprintf(stderr, "ERR: TYPE MUST BE VECTOR, LINE %ld\n", GLOBAL_LINE_NUMBER);
+	exit(1);
+
+
+startShifting:
+	for(int j = 31; j > i; j--)
+		in->modString[j - 1] = in->modString[j];
+
+	in->modString[31] = NONE_MOD;
+
+	return in;
 }
 
 
@@ -516,8 +660,6 @@ void initNodes(){
 
 // take in an unregistered symbol, register it, produce a unregistered node
 struct genericNode* registerSymbol(struct symbolEntry* in){
-	
-	//TODO: have a special thing for function pointers
 
 	//see if it's an immediate
 	long immediateCheck = 0;
@@ -545,11 +687,18 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 			temp->type = SYMBOL_TYPE;
 			temp->children[0] = (struct genericNode*)current;
 			
-			strcpy(temp->modString, current->modString); //copy the modString upwards
+			memcpy(temp->modString, current->modString, 32); //copy the modString upwards
 			
+			for(int i = 31; i > -1; i--){
+				if(temp->modString[i] == CLOSE_FUNCTION_POSTFIX)
+					temp->modString[i + 1] = POINTER_POSTFIX; //handle function pointers
+				
+				if(temp->modString[i] != NONE_MOD)
+					break;
+			}
+
 			if(poisonRefBool && !immediateCheck) //this is a poison reference to a non immediate, and the timestamp on the symbol needs to be updated
 				current->timestamp = globalTimestamp++;
-
 
 			free(in);	//get rid of the canidate Symbol
 			return temp;
@@ -562,7 +711,7 @@ BADCONST:;
 
 	//see if it's an invalid reference
 	if(in->modString[0] == REF_MOD){ //it's a reference...
-		printf("ERROR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
+		printf("ERR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
 		exit(1);
 	}
 
@@ -576,7 +725,7 @@ BADCONST:;
 	temp->type = SYMBOL_TYPE;
 	temp->children[0] = (struct genericNode*)in;
 	
-	strcpy(temp->modString, current->modString); //copy the modString upwards
+	memcpy(temp->modString, current->modString, 32); //copy the modString upwards
 	
 	return temp;
 }
@@ -595,14 +744,25 @@ void closeScope(){
 }
 
 
+static int falseScopeBool = 0;
 
 void openFalseScope(){
+
+	if(falseScopeBool == 1)
+		return;		//we already have a false scope open
+		
+	falseScopeBool = 1;
 	symbolStackPointer->baseStore = symbolBasePointer;
 	symbolBasePointer = symbolStackPointer;
 	currentScopeCounter++;
 }
 
 void closeFalseScope(){
+
+	if(falseScopeBool == 0)
+		return;		//we never opened a false scope
+
+	falseScopeBool = 0;
 	currentScopeCounter--;
 	symbolStackPointer = symbolBasePointer;
 	symbolBasePointer = symbolStackPointer->baseStore;
@@ -632,12 +792,8 @@ static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode
 }
 
 
-struct genericNode* registerNodeFunction(struct genericNode* in){
-
-}
-
-
-struct genericNode* registerNode(struct genericNode* in){
+//mode = 1 -> don't allow dangling function types; mode = 0 -> allow dangling function types
+struct genericNode* registerNodeOperator(struct genericNode* in, int mode){
 	static unsigned long dagIndex = 0;
 
 	in->timestamp = globalTimestamp++;
@@ -646,6 +802,13 @@ struct genericNode* registerNode(struct genericNode* in){
 		if(in->modString[i] != NONE_MOD){
 			if(in->modString[i - 1] == SHARED_MOD)
 				goto SHAREDSKIP;		//check to see if the most recent marker is shared
+			
+			if(in->modString[i] == CLOSE_FUNCTION_POSTFIX) //check to see if we have a dangling function
+				if(mode){
+					printf("ERR: DANGLING FUNCTION TYPE, LINE %ld\n", GLOBAL_LINE_NUMBER); //...to something that doesn't exist
+					exit(1);
+				}
+
 		}else
 			break;
 
@@ -680,6 +843,18 @@ SHAREDSKIP:;
 	
 	return in;
 }
+
+
+struct genericNode* registerNode(struct genericNode* in){
+	return registerNodeOperator(in, 1);
+}
+
+
+struct genericNode* registerNodeFunction(struct genericNode* in){
+	return registerNodeOperator(in, 0);
+}
+
+
 
 
 //adds a new child to a node, but since reallocing a node more often than not loses it's place in memory
