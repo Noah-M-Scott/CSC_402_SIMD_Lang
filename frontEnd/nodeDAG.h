@@ -13,6 +13,7 @@ enum {
 	GOTO_TYPE,
 	LABEL_TYPE,
 	RETURN_TYPE,
+	RETURN_EXP_TYPE,
 	DEFAULT_TYPE,
 	CASE_TYPE,
 	SWITCH_TYPE,
@@ -46,7 +47,7 @@ enum {
 	LT_TERN_TYPE,
 	GT_TERN_TYPE,
 	LT_EQU_TERN_TYPE,
-	GT_EQU_TRN_TYPE,
+	GT_EQU_TERN_TYPE,
 	LSH_TYPE,
 	RSH_TYPE,
 	SUB_TYPE,
@@ -85,7 +86,7 @@ enum {
 	QUAD_BASE,	//also used to mark immediate integer data
 	SINGLE_BASE,
 	DOUBLE_BASE,	//also used to mark immediate floating data
-	STRUCT_BASE,
+	DOTDOTDOT_BASE,
 	ARRAY_POSTFIX,
 	POINTER_POSTFIX,
 	FUNCTION_POSTFIX,
@@ -199,6 +200,25 @@ void matchLength(char* dest, char* src){
 }
 
 
+void createIPTSymbol(char* name){
+
+
+}
+
+
+
+struct symbolEntry* createLabel(char* name){
+
+
+}
+
+
+struct genericNode* createLabelJump(char* name){
+
+}
+
+
+
 
 
 //strict type compare (allow scalling immediate ints up), pointers interact with quads
@@ -266,7 +286,7 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 		if(param->children[w]->modString[j] == GLOBAL_HINT || param->children[w]->modString[j] == EXTERN_HINT || param->children[w]->modString[j] == CONST_HINT)
 			j++; //skip the hint section
 
-		if(pram->children[w]->modString[j] == NONE_TYPE){
+		if(param->children[w]->modString[j] == NONE_MOD){
 			j = 0; 
 			w++; //next child
 		}
@@ -473,14 +493,14 @@ struct genericNode* fetchFunc(struct genericNode* in){
 			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
 				in->modString[i] = NONE_MOD;
 			in->modString[i - 1] = NONE_MOD;
-			return;
+			return in;
 		}
 
 		if(in->modString[i] == POINTER_POSTFIX && in->modString[i - 1] == CLOSE_FUNCTION_POSTFIX){
 			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
 				in->modString[i] = NONE_MOD;
 			in->modString[i - 1] = NONE_MOD;
-			return;
+			return in;
 		}
 
 		if(in->modString[i] != NONE_MOD){
@@ -497,7 +517,7 @@ struct genericNode* fetchMod(struct genericNode* in){
 	for(int i = 31; i > -1; i--){
 		if(in->modString[i] == POINTER_POSTFIX || in->modString[i] == ARRAY_POSTFIX){
 			in->modString[i] = NONE_MOD;
-			return;
+			return in;
 		}
 
 		if(in->modString[i] != NONE_MOD){
@@ -552,25 +572,25 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 
 		//ugly as sin way of doing this
 		if( inputVal < 128 && inputVal > -129)
-			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
 
 		else if( inputVal < 256 && inputVal > -1)
-			(temp->size = 1, temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
 
 		else if( inputVal < 32768 && inputVal > -32769)
-			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
 
 		else if( inputVal < 65536 && inputVal > -1)
-			(temp->size = 2, temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = WORD_BASE);
 
 		else if( inputVal < 2147483648 && inputVal > -2147483649)
-			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
 
 		else if( inputVal < 4294967296 && inputVal > -1)
-			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = LONG_BASE);
 		
 		else
-			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = QUAD_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = QUAD_BASE);
 	
 	}else if (type == 3){
 		strcpy(temp->constValue, inValue);
@@ -580,16 +600,15 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 		sscanf(inValue, "%lf", &inputVal);
 
 		if(FLT_MAX <= inputVal && inputVal >= FLT_MIN)
-			(temp->size = 4, temp->modString[0] = CONST_HINT, temp->modString[1] = SINGLE_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = SINGLE_BASE);
 		else
-			(temp->size = 8, temp->modString[0] = CONST_HINT, temp->modString[1] = DOUBLE_BASE);
+			(temp->modString[0] = CONST_HINT, temp->modString[1] = DOUBLE_BASE);
 	
 	}else if (type == 4){
 		temp->stringLitBool = 1;
 		temp->modString[0] = CONST_HINT;
 		temp->modString[1] = BYTE_BASE;
 		temp->modString[2] = POINTER_POSTFIX;
-		temp->size = 8;
 		
 		sprintf( &(temp->constValue)[3], "%ld", stringLitCounter++);
 		
@@ -863,7 +882,7 @@ struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
 
 	p->childCount++;
 
-	struct genericNode* newHome = realloc(p, p->nodeSize);
+	struct genericNode* newHome = realloc(p, sizeof(struct genericNode*) + sizeof(struct genericNode*) * p->childCount);
 
 	for(int i = 0; i < dagSize; i++)
 		if(DAG[i] != NULL){

@@ -30,10 +30,8 @@
 ">="		{ return GTEQU_OP; }
 "<="		{ return LTEQU_OP; }
 "!="		{ return NOTEQU_OP; }
-"->"		{ return ARROW_OP; }
 "&&"		{ return ANDAND_OP; }
 "||"		{ return OROR_OP; }
-"SIZEOF"	{ return SIZEOF_OP; }
 "..."		{ return DOTDOTDOT_OP; }
 "EXTERN"	{ return EXTERN_OP; }
 "GLOBAL"	{ return GLOBAL_OP; }
@@ -45,7 +43,6 @@
 "QUAD"		{ return QUAD_OP; }
 "SINGLE"	{ return SINGLE_OP; }
 "DOUBLE"	{ return DOUBLE_OP; }
-"STRUCT"	{ return STRUCT_OP; }
 "CONST"		{ return CONST_OP; }
 "SHARED"	{ return SHARED_OP; }
 "IF"		{ return IF_OP; }
