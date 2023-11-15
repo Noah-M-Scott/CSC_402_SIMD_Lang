@@ -52,6 +52,8 @@ FILE *outFile;
 %token CONST_OP
 %token SHARED_OP
 
+%token BLOCK_OP
+%token SET_OP
 %token IF_OP
 %token ELSE_OP
 %token WHILE_OP
@@ -94,8 +96,6 @@ FILE *outFile;
 %nterm <struct genericNode*> logical_and_operation
 %nterm <struct genericNode*> logical_or_operation
 %nterm <struct genericNode*> ternary_operation
-%nterm <struct genericNode*> assignment_operation
-%nterm <struct genericNode*> comma_operation
 %nterm <struct genericNode*> expression
 %nterm <struct genericNode*> declaration
 %nterm <struct genericNode*> variable_declaration
@@ -161,23 +161,41 @@ initial_expression:
 					  enforcePointer($2);			//require a pointer
 					  $$ = registerNode(fetchMod(temp));	//undo the pointer
 			 	       	}
+	| BLOCK_OP '(' constant ')'	{ $$ = NULL; } //this should return a void pointer to a new block, either in data or stack
 	;
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 initializer_list:
-	  '\\' DECIMAL			{ dataLitIndex = strlen($2); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
-	| '\\' FLOAT			{ dataLitIndex = strlen($2); dataLitType = 1; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
-	| '\\' BINARY			{ dataLitIndex = strlen($2); dataLitType = 2; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
-	| '\\' HEX			{ dataLitIndex = strlen($2); dataLitType = 3; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
-	| '\\' IDENT			{ dataLitIndex = strlen($2); dataLitType = 4; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
+	  '\\' DECIMAL			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
+	| '\\' FLOAT			{ dataLitIndex = strlen($2);  dataLitType = 1; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
+	| '\\' BINARY			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
+	| '\\' HEX			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
+	| '\\' IDENT			{ dataLitIndex = strlen($2);  dataLitType = 2; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
 
-	| initializer_list ',' DECIMAL	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
-	| initializer_list ',' FLOAT	{ checkDataLitType(1); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
-	| initializer_list ',' BINARY	{ checkDataLitType(2); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
-	| initializer_list ',' HEX	{ checkDataLitType(3); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
-	| initializer_list ',' IDENT	{ checkDataLitType(4); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
+	| '\\' BYTE_OP			{ dataLitIndex = strlen("1"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "1"); }
+	| '\\' WORD_OP			{ dataLitIndex = strlen("2"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "2"); }
+	| '\\' LONG_OP			{ dataLitIndex = strlen("4"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "4"); }
+	| '\\' QUAD_OP			{ dataLitIndex = strlen("8"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "8"); }
+	| '\\' SINGLE_OP		{ dataLitIndex = strlen("4"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "4"); }
+	| '\\' DOUBLE_OP		{ dataLitIndex = strlen("8"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "8"); }
+	| '\\' NULL_OP			{ dataLitIndex = strlen("0"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "0"); }
+
+	| initializer_list ',' DECIMAL	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
+	| initializer_list ',' FLOAT	{ checkDataLitType(1); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
+	| initializer_list ',' BINARY	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
+	| initializer_list ',' HEX	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
+	| initializer_list ',' IDENT	{ checkDataLitType(2); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
+
+	| initializer_list ',' BYTE_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "1"); dataLitIndex += strlen("1"); }
+	| initializer_list ',' WORD_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "2"); dataLitIndex += strlen("2"); }
+	| initializer_list ',' LONG_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "4"); dataLitIndex += strlen("4"); }
+	| initializer_list ',' QUAD_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "8"); dataLitIndex += strlen("8"); }
+	| initializer_list ',' SINGLE_OP{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "4"); dataLitIndex += strlen("4"); }
+	| initializer_list ',' DOUBLE_OP{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "8"); dataLitIndex += strlen("8"); }
+	| initializer_list ',' NULL_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "0"); dataLitIndex += strlen("0"); }
 	;
+
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -245,14 +263,14 @@ permute_list:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 argument_list:
-	  '(' assignment_operation		 { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+	  '(' ternary_operation			 { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						   temp->type = ARGUMENT_LIST_TYPE;
 						   memset(temp->modString, NONE_MOD, 32);
 						   temp->childCount = 1;
 						   temp->children[0] = $2;
 						   $$ = registerNode(temp);	//create the head, like above
 				 	       	 }
-	| argument_list ',' assignment_operation { $$ = appendAChild($1, $3); /* add a argument to the list */ }
+	| argument_list ',' ternary_operation 	 { $$ = appendAChild($1, $3); /* add a argument to the list */ }
 	;
 
 
@@ -305,7 +323,7 @@ prefix_operation:
 						  requireVecs($2);		//require vecs for running dif
 						  $$ = registerNode(temp);
 			 	      	 	}
-	| '(' type_name ')' prefix_operation    { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+	| '(' type_name ')' prefix_operation   	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						  temp->type = PUNN_TYPE;
 						  memcpy(temp->modString, $2, 32);
 						  temp->childCount = 1;
@@ -661,46 +679,10 @@ ternary_operation:
 			 					       	 }
 	;
 
-//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-assignment_operation:
-	  ternary_operation { poisonRefBool = 1; $$ = $1; }
-
-	| prefix_operation  {poisonRefBool = 0; } '=' assignment_operation	  
-							  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-							    temp->type = EQU_TYPE;
-							    memcpy(temp->modString, $1->modString, 32);
-							    temp->childCount = 2;
-							    temp->children[0] = $1;
-							    temp->children[1] = $4;
-							    compareTypes($1, $4);
-							    $$ = registerNode(temp);
-						       	  }
-	;
-
-
-
-
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-comma_operation:
-	  assignment_operation				  { poisonRefBool = 0; $$ = $1; }
-
-	| comma_operation ',' assignment_operation  	  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-							    temp->type = COMMA_TYPE;
-							    memcpy(temp->modString, $3->modString, 32);
-							    temp->childCount = 2;
-							    temp->children[0] = $1;
-							    temp->children[1] = $3;
-							    $$ = registerNode(temp);
-						       	  }
-	;
-
-
-
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 expression:
-	  comma_operation				{ $$ = $1; }
+	  ternary_operation	{ $$ = $1; }
 	;
 
 
@@ -893,28 +875,47 @@ openScopeHelper: '(' {openScope(); }
 	;
 
 statement:
-	  ';'						{ $$ = NULL; }
-	| expression ';'				{ $$ = $1; }
-	| declaration					{ $$ = $1; }
-	| scope '}'					{ closeScope(); $$ = $1; }
-	| IF_OP openScopeHelper expression ')' statement	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+	  ';'						  	{ $$ = NULL; }
+	| expression ';'				  	{ $$ = $1; }
+	| declaration					  	{ $$ = $1; }
+	| scope '}'					  	{ closeScope(); $$ = $1; }
+
+
+/*
+	| SET_OP IDENT			    '=' expression ';'
+	| SET_OP	'[' expression ']'  '=' expression ';'
+	| SET_OP IDENT 	'<' constant   '>'  '=' expression ';'
+*/
+
+
+	| SET_OP {poisonRefBool = 1;} prefix_operation {poisonRefBool = 0;} '=' expression ';'	  
+								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+								  temp->type = EQU_TYPE;
+								  memcpy(temp->modString, $3->modString, 32);
+								  temp->childCount = 2;
+								  temp->children[0] = $3;
+								  temp->children[1] = $6;
+								  compareTypes($3, $6);
+								  $$ = registerNode(temp);
+							       	}
+	| IF_OP openScopeHelper expression ')' DO_OP statement	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 								  temp->type = IF_TYPE;
 							 	  memset(temp->modString, NONE_MOD, 32);
 								  temp->childCount = 2;
 								  temp->children[0] = $3;
-								  temp->children[1] = $5;
+								  temp->children[1] = $6;
 								  closeScope();
 								  $$ = registerNode(temp);
 								}
 
-	| IF_OP openScopeHelper expression ')' statement ELSE_OP statement
+	| IF_OP openScopeHelper expression ')' THEN_OP statement ELSE_OP statement
 								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 3);
 								  temp->type = IF_ELSE_TYPE;
 							 	  memset(temp->modString, NONE_MOD, 32);
 								  temp->childCount = 3;
 								  temp->children[0] = $3;
-								  temp->children[1] = $5;
-								  temp->children[2] = $7;
+								  temp->children[1] = $6;
+								  temp->children[2] = $8;
 								  closeScope();
 								  $$ = registerNode(temp);
 								}
@@ -991,127 +992,7 @@ statement:
 	| IDENT ':' statement					{ $$ = appendAChild(registerNode(registerSymbol(createLabel($1))), $3); }
 	| GOTO_OP IDENT ';'					{ $$ = registerNode(createLabelJump($2)); }
 
-	| FOR_OP openScopeHelper            ';'            ';'            ')' statement	
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = NULL;
-								  temp->children[1] = NULL;
-								  temp->children[2] = NULL;
-								  temp->children[3] = $6;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper            ';'            ';' expression ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = NULL;
-								  temp->children[1] = NULL;
-								  temp->children[2] = $5;
-								  temp->children[3] = $7;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper            ';' expression ';'            ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = NULL;
-								  temp->children[1] = $4;
-								  temp->children[2] = NULL;
-								  temp->children[3] = $7;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper            ';' expression ';' expression ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = NULL;
-								  temp->children[1] = $4;
-								  temp->children[2] = $6;
-								  temp->children[3] = $8;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper expression ';'            ';'            ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = NULL;
-								  temp->children[2] = NULL;
-								  temp->children[3] = $7;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper expression ';'            ';' expression ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = NULL;
-								  temp->children[2] = $6;
-								  temp->children[3] = $8;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper expression ';' expression ';'            ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = $5;
-								  temp->children[2] = NULL;
-								  temp->children[3] = $8;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper expression ';' expression ';' expression ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = $5;
-								  temp->children[2] = $7;
-								  temp->children[3] = $9;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper declaration            ';' ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = NULL;
-								  temp->children[2] = NULL;
-								  temp->children[3] = $6;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper declaration expression ';' ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = $4;
-								  temp->children[2] = NULL;
-								  temp->children[3] = $7;
-								  $$ = registerNode(temp);
-								}
-
-	| FOR_OP openScopeHelper declaration            ';' expression ')' statement
+	| FOR_OP openScopeHelper statement            ';' statement ')' statement
 								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
 								  temp->type = FOR_TYPE;
 							 	  memset(temp->modString, NONE_MOD, 32);
@@ -1123,7 +1004,7 @@ statement:
 								  $$ = registerNode(temp);
 								}
 
-	| FOR_OP openScopeHelper declaration expression ';' expression ')' statement
+	| FOR_OP openScopeHelper statement expression ';' statement ')' statement
 								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
 								  temp->type = FOR_TYPE;
 							 	  memset(temp->modString, NONE_MOD, 32);
@@ -1134,7 +1015,6 @@ statement:
 								  temp->children[3] = $8;
 								  $$ = registerNode(temp);
 								}
-
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------

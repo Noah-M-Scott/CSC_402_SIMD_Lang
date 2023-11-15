@@ -176,9 +176,9 @@ static int globalTypeIndexStack[16];
 static int globalTypePointer = 0;
 
 
-
+//0 = int, 1 = float, 2 = ident
 void checkDataLitType(int in){
-	if(in != dataLitType && in != 4){
+	if(in != dataLitType && in != 2){
 		fprintf(stderr, "ERR: TYPE MISMATCH IN DATA STRING LITERAL, LINE %ld\n", GLOBAL_LINE_NUMBER);
 		exit(1);
 	}

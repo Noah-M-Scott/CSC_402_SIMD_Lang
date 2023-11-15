@@ -71,6 +71,9 @@
 "DEFINE"	{ if(IN_COM) continue; return DEFINE_OP; }
 "UNDEF"		{ if(IN_COM) continue; return UNDEF_OP; }
 "NOTHING"	{ if(IN_COM) continue; return NOTHING_OP; }
+"SET"		{ if(IN_COM) continue; return SET_OP; }
+"BLOCK"		{ if(IN_COM) continue; return BLOCK_OP; }
+
 
 
 "\""[.]+"\""		{ if(IN_COM) continue; yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
