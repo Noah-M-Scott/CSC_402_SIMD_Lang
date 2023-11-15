@@ -158,6 +158,9 @@ int globalTypeIndex;
 char globalIPT[32];
 long globalTimestamp;
 
+int dataLitType;
+int dataLitIndex;
+
 unsigned long currentScopeCounter;
 unsigned long inStructBool;
 
@@ -171,6 +174,15 @@ struct genericNode** DAG;
 
 static int globalTypeIndexStack[16];
 static int globalTypePointer = 0;
+
+
+
+void checkDataLitType(int in){
+	if(in != dataLitType && in != 4){
+		fprintf(stderr, "ERR: TYPE MISMATCH IN DATA STRING LITERAL, LINE %ld\n", GLOBAL_LINE_NUMBER);
+		exit(1);
+	}
+}
 
 
 
@@ -543,7 +555,7 @@ struct symbolEntry* createRef(char* inName){
 }
 
 
-// 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral, 5 = label
+// 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral, 5 = label, 6 = dataStringLiteral
 struct symbolEntry* createImmediate(char* inValue, int type){
 	static long stringLitCounter = 0;
 

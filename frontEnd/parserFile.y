@@ -5,6 +5,7 @@
 #include <float.h>
 
 unsigned long GLOBAL_LINE_NUMBER;
+unsigned long IN_COM = 0;
 #include "frontEnd/nodeDAG.h"
 
 int yylex(void);
@@ -77,8 +78,7 @@ FILE *outFile;
 
 %nterm <struct genericNode*> constant
 %nterm <struct genericNode*> initial_expression
-%nterm <struct genericNode*> initializer
-%nterm <struct genericNode*> initializer_list
+%nterm <char*> initializer_list
 %nterm <struct genericNode*> postfix_operation
 %nterm <struct genericNode*> permute_list
 %nterm <struct genericNode*> argument_list
@@ -142,6 +142,7 @@ initial_expression:
 	  IDENT				{ $$ = registerNode(registerSymbol(createRef($1)));          } //create referance
 	| constant			{ $$ = $1;                                                   } //passthrough
 	| STRING_LIT			{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); } //string immediate (char*)
+	| initializer_list '\\'		{ $$ = registerNode(registerSymbol(createImmediate($1, 6))); } //like string lit, but of const type
 	| DOTDOTDOT_OP			{ struct genericNode* temp = malloc(sizeof(struct genericNode)); 
 					  temp->childCount = 0; 
 					  temp->type = DOTDOTDOT_TYPE;			// '...' is a void pointer to stack base + offset
@@ -151,30 +152,33 @@ initial_expression:
 					  $$ = registerNode(temp); 
 					}
 	| '(' expression ')'		{ $$ = $2; }	//pass
-	| initializer_list		{ $$ = $1; }	//pass
 	| '&' IDENT			{ $$ = registerNode(registerSymbol(createImmediate($2, 5))); } //get data label
-	;
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-initializer:
-	  constant			{ $$ = $1; } //pass
-	| '{' initializer_list '}'	{ $$ = $2; } //pass
+	| '[' expression ']'		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+					  temp->type = DEREF_TYPE;
+					  memcpy(temp->modString, $2->modString, 32);
+					  temp->childCount = 1;
+					  temp->children[0] = $2;
+					  enforcePointer($2);			//require a pointer
+					  $$ = registerNode(fetchMod(temp));	//undo the pointer
+			 	       	}
 	;
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 initializer_list:
-	  initializer				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-						  temp->type = INIT_LIST_TYPE;
-						  memcpy(temp->modString, $1->modString, 32);
-						  temp->childCount = 1;
-						  temp->children[0] = $1;
-						  $$ = registerNode(temp);	//create the center node of the list
-						}
-	| initializer_list ',' initializer	{ compareTypes($1, $3);	     //make sure it matches the initList type
-						  $$ = appendAChild($1, $3); //add another branch to the head
-						}
+	  '\\' DECIMAL			{ dataLitIndex = strlen($2); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
+	| '\\' FLOAT			{ dataLitIndex = strlen($2); dataLitType = 1; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
+	| '\\' BINARY			{ dataLitIndex = strlen($2); dataLitType = 2; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
+	| '\\' HEX			{ dataLitIndex = strlen($2); dataLitType = 3; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
+	| '\\' IDENT			{ dataLitIndex = strlen($2); dataLitType = 4; $$ = malloc(dataLitIndex + 1); strcpy($$, $2); }
+
+	| initializer_list ',' DECIMAL	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
+	| initializer_list ',' FLOAT	{ checkDataLitType(1); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
+	| initializer_list ',' BINARY	{ checkDataLitType(2); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
+	| initializer_list ',' HEX	{ checkDataLitType(3); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
+	| initializer_list ',' IDENT	{ checkDataLitType(4); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $1); dataLitIndex += strlen($3); }
 	;
+
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 postfix_operation:
@@ -187,23 +191,23 @@ postfix_operation:
 							  requireFunctions($1);
 							  $$ = registerNode(fetchFunc(temp)); //this operates on function pointers not functions
 							} 
-	| postfix_operation '(' argument_list ')'	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*)*2);
+	| postfix_operation argument_list ')'		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*)*2);
 							  temp->type = CALL_PARAM_TYPE;
 							  memcpy(temp->modString, $1->modString, 32);
 							  temp->childCount = 2;
 							  temp->children[0] = $1;
-							  temp->children[1] = $3;
+							  temp->children[1] = $2;
 							  requireFunctions($1);
-							  checkArgumentTypes($1, $3);
+							  checkArgumentTypes($1, $2);
 							  $$ = registerNode(fetchFunc(temp)); //same here
 							}
-	| postfix_operation '<' permute_list '>' 	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+	| postfix_operation permute_list '>'	 	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 							  temp->type = PERMUTE_TYPE;
 							  memcpy(temp->modString, $1->modString, 32);
 							  temp->childCount = 2;
 							  temp->children[0] = $1;
-							  temp->children[1] = $3;
-							  checkLengths($1, $3);
+							  temp->children[1] = $2;
+							  checkLengths($1, $2);
 							  requireVecs($1);
 							  $$ = registerNode(temp);
 							}
@@ -222,15 +226,15 @@ postfix_operation:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 permute_list:
-	  constant				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+	  '<' constant				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						  temp->type = PERMUTE_LIST_TYPE;
 						  memset(temp->modString, NONE_MOD, 32);
 						  temp->modString[0] = VECTOR_MOD;
 						  temp->modString[1] = -1;		//start with a length of one
 						  temp->modString[2] = QUAD_BASE;
 						  temp->childCount = 1;
-						  temp->children[0] = $1;
-						  enforceScalerInts($1);	//no indexing with floats
+						  temp->children[0] = $2;
+						  enforceScalerInts($2);	//no indexing with floats
 						  $$ = registerNode(temp);	//create head, like initList
 				 	      	}
 	| permute_list ',' constant		{ enforceScalerInts($3);
@@ -241,11 +245,11 @@ permute_list:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 argument_list:
-	  assignment_operation			 { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+	  '(' assignment_operation		 { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						   temp->type = ARGUMENT_LIST_TYPE;
 						   memset(temp->modString, NONE_MOD, 32);
 						   temp->childCount = 1;
-						   temp->children[0] = $1;
+						   temp->children[0] = $2;
 						   $$ = registerNode(temp);	//create the head, like above
 				 	       	 }
 	| argument_list ',' assignment_operation { $$ = appendAChild($1, $3); /* add a argument to the list */ }
@@ -284,14 +288,6 @@ prefix_operation:
 						  temp->childCount = 1;
 						  temp->children[0] = $2;
 						  $$ = registerNode(temp);
-				 	       	}
-	| '*' prefix_operation			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-						  temp->type = DEREF_TYPE;
-						  memcpy(temp->modString, $2->modString, 32);
-						  temp->childCount = 1;
-						  temp->children[0] = $2;
-						  enforcePointer($2);			//require a pointer
-						  $$ = registerNode(fetchMod(temp));	//undo the pointer
 				 	       	}
 	| ADD_BAR_OP prefix_operation		{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 						  temp->type = RUN_SUM_TYPE;
@@ -710,24 +706,13 @@ expression:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 variable_declaration:
-	  hint_modifier type_name {memcpy(&globalIPT[1], $2, 31); globalIPT[0] = $1; excludeFunctionsType($2);closeFalseScope();} declaration_init_list ';' { $$ = $4; }
-	| type_name 		  { memcpy(globalIPT, $1, 32); excludeFunctionsType($1); closeFalseScope(); } declaration_init_list ';' { $$ = $3; }
+	  type_name declaration_init_list ';' { $$ = $2; }
 	;
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function_declaration:
-	  hint_modifier type_name IDENT scope		    { struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
-							      memcpy(&temp->modString[1], $2, 31);
-							      temp->modString[0] = $1;
-							      memcpy(temp->name, $3, 128);
-							      temp->innerScope = $4;
-							      requireFunctionsType($2);
-							      enforceZeroScope();
-							      closeFalseScope();
-							      $$ = registerNodeFunction(registerSymbol(temp));
-							    }
-	| type_name IDENT scope				    { struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
+	  type_name IDENT scope				    { struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 							      memcpy(temp->modString, $1, 32);
 							      memcpy(temp->name, $2, 128);
 							      temp->innerScope = $3;
@@ -748,7 +733,9 @@ declaration:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 declaration_init_list:
-	  IDENT '=' expression				{ createIPTSymbol($1); //create a symbol using the inprocess type
+	  IDENT '=' expression				{ closeFalseScope(); //close the previous false scope from typename
+							  excludeFunctionsType(globalIPT);
+							  createIPTSymbol($1); //create a symbol using the inprocess type
 							  struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 							  temp->type = EQU_TYPE;
 							  memcpy(temp->modString, $3->modString, 32);
@@ -763,7 +750,9 @@ declaration_init_list:
 							  temp2->children[0] = temp;
 							  $$ = registerNode(temp2);	//create the head
 						        }
-	| IDENT						{ createIPTSymbol($1);	//in process symbol creation
+	| IDENT						{ closeFalseScope(); //close the previous false scope from typename
+							  excludeFunctionsType(globalIPT);
+							  createIPTSymbol($1);	//in process symbol creation
 							  struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 							  temp->type = DEC_LIST_TYPE;
 							  memset(temp->modString, NONE_MOD, 32);
@@ -786,20 +775,21 @@ declaration_init_list:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 hint_modifier:
-	  EXTERN_OP	{ $$ = EXTERN_HINT; }	
-	| GLOBAL_OP	{ $$ = GLOBAL_HINT; }
+	  %empty 	{ $$ = 0; }
+	| EXTERN_OP	{ $$ = EXTERN_HINT; enforceZeroScope(); }	
+	| GLOBAL_OP	{ $$ = GLOBAL_HINT; enforceZeroScope(); }
 	| CONST_OP	{ $$ = CONST_HINT;  }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 base_type:
-	  VOID_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = VOID_BASE; $$ = temp; }
-	| BYTE_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = BYTE_BASE; $$ = temp; }
-	| WORD_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = WORD_BASE; $$ = temp; }
-	| LONG_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = LONG_BASE; $$ = temp; }
-	| QUAD_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = QUAD_BASE; $$ = temp; }
-	| SINGLE_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = SINGLE_BASE; $$ = temp; }
-	| DOUBLE_OP		{ char *temp = malloc(32); globalTypeIndex = 1; temp[0] = DOUBLE_BASE; $$ = temp; }
+	  hint_modifier VOID_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = VOID_BASE;   $$ = temp; }
+	| hint_modifier BYTE_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = BYTE_BASE;   $$ = temp; }
+	| hint_modifier WORD_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = WORD_BASE;   $$ = temp; }
+	| hint_modifier LONG_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = LONG_BASE;   $$ = temp; }
+	| hint_modifier QUAD_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = QUAD_BASE;   $$ = temp; }
+	| hint_modifier SINGLE_OP	{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = SINGLE_BASE; $$ = temp; }
+	| hint_modifier DOUBLE_OP	{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = DOUBLE_BASE; $$ = temp; }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -837,12 +827,12 @@ base_type_postfix:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pointer_modifier:
-	  base_type_postfix '*'			{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| pointer_modifier  '*'			{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| function_modifier '*'			{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| base_type_postfix SHARED_OP '*'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| pointer_modifier  SHARED_OP '*'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| function_modifier SHARED_OP '*'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	  base_type_postfix '[' ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| pointer_modifier  '['	']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| function_modifier '['	']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| base_type_postfix '[' SHARED_OP ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| pointer_modifier  '[' SHARED_OP ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| function_modifier '[' SHARED_OP ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -868,9 +858,9 @@ function_modifier:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 type_name:
-	  base_type_postfix	{ $$ = $1; }
-	| function_modifier	{ $$ = $1; }
-	| pointer_modifier	{ $$ = $1; }
+	  base_type_postfix	{ memcpy(globalIPT, $1, 32); $$ = $1; }
+	| function_modifier	{ memcpy(globalIPT, $1, 32); $$ = $1; }
+	| pointer_modifier	{ memcpy(globalIPT, $1, 32); $$ = $1; }
 	;
 
 
@@ -887,7 +877,7 @@ parameter_list:
 							    	  registerSymbol(temp);
 								  $$ = $1;
  								}
-	| parameter_list ',' pushTypeIndexR type_name	{ copyAndPopTypeIndex($1, $4); free($4); $$ = $1; }
+	| parameter_list ',' pushTypeIndexR type_name		{ copyAndPopTypeIndex($1, $4); free($4); $$ = $1; }
 	| parameter_list ',' pushTypeIndexR type_name IDENT	{ struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 							    	  memcpy(temp->modString, $4, 32);
 							    	  memcpy(temp->name, $4, 128);
