@@ -79,8 +79,31 @@
 "\""[.]+"\""		{ if(IN_COM) continue; yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
 
 
-[a-zA-Z][a-zA-Z0-9_]*	{ if(IN_COM) continue; yylval.IDENT = strdup(yytext); return IDENT; }
-[a-zA-Z_][a-zA-Z0-9_]+	{ if(IN_COM) continue; yylval.IDENT = strdup(yytext); return IDENT; }
+[a-zA-Z][a-zA-Z0-9_]*	{ if(IN_COM) continue; 
+			  switch(checkConst(yytext){ 
+				case(0): yylval.IDENT = strdup(yytextdup); 
+				return IDENT; 
+				
+				case(1): yylval.DECIMAL = strdup(yytextdup); 
+				return DECIMAL; 
+
+				case(2): yylval.FLOAT = strdup(yytextdup); 
+				return FLOAT; 
+			  }
+			}
+
+[a-zA-Z_][a-zA-Z0-9_]+	{ if(IN_COM) continue; 
+			  switch(checkConst(yytext){ 
+				case(0): yylval.IDENT = strdup(yytextdup); 
+				return IDENT; 
+				
+				case(1): yylval.DECIMAL = strdup(yytextdup); 
+				return DECIMAL; 
+
+				case(2): yylval.FLOAT = strdup(yytextdup); 
+				return FLOAT; 
+			  }
+			}
 
 
 %%
