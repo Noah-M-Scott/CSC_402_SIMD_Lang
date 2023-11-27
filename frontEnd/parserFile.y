@@ -809,12 +809,12 @@ base_type_postfix:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pointer_modifier:
-	  base_type_postfix '[' ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| pointer_modifier  '['	']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| function_modifier '['	']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| base_type_postfix '[' SHARED_OP ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| pointer_modifier  '[' SHARED_OP ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| function_modifier '[' SHARED_OP ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	  '[' base_type_postfix ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| '[' pointer_modifier  ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| '[' function_modifier ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| '[' SHARED_OP base_type_postfix ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| '[' SHARED_OP pointer_modifier  ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	| '[' SHARED_OP function_modifier ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
