@@ -206,14 +206,6 @@ void copyAndPopTypeIndex(char* dest, char* src){
 }
 
 
-
-//produce a int/intvec that matches the length
-void matchLength(char* dest, char* src){
-
-
-}
-
-
 void createIPTSymbol(char* name){
 
 
