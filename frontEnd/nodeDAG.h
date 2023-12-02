@@ -175,14 +175,8 @@ struct genericNode** DAG;
 static int globalTypeIndexStack[16];
 static int globalTypePointer = 0;
 
-//check if IDENT is constant, replace with value if so
-//0 -> regular Ident; 1 -> decimal const; 2 -> floating const
-char* yytextdup;
-int checkConst(char* in){
-	
-	
-	
-}
+
+
 
 //0 = int, 1 = float, 2 = ident
 void checkDataLitType(int in){
@@ -336,23 +330,6 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 		fprintf(stderr, "ERR: ARGUMENT MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
 		exit(1);
 	}
-}
-
-
-
-//move up
-void promoteInts(struct genericNode* in){
-
-
-
-}
-
-
-//move up
-void promoteFloats(struct genericNode* in){
-
-
-
 }
 
 

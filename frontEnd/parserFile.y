@@ -161,7 +161,6 @@ initial_expression:
 					  enforcePointer($2);			//require a pointer
 					  $$ = registerNode(fetchMod(temp));	//undo the pointer
 			 	       	}
-	| BLOCK_OP '(' constant ')'	{ $$ = NULL; } //this should return a void pointer to a new block, either in data or stack
 	;
 
 
@@ -171,7 +170,6 @@ initializer_list:
 	| '\\' FLOAT			{ dataLitIndex = strlen($2);  dataLitType = 1; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
 	| '\\' BINARY			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
 	| '\\' HEX			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
-	| '\\' IDENT			{ dataLitIndex = strlen($2);  dataLitType = 2; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
 
 	| '\\' BYTE_OP			{ dataLitIndex = strlen("1"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "1"); }
 	| '\\' WORD_OP			{ dataLitIndex = strlen("2"); dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, "2"); }
@@ -185,7 +183,6 @@ initializer_list:
 	| initializer_list ',' FLOAT	{ checkDataLitType(1); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
 	| initializer_list ',' BINARY	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
 	| initializer_list ',' HEX	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
-	| initializer_list ',' IDENT	{ checkDataLitType(2); $$ = realloc($1, dataLitIndex+strlen($3)+1); strcpy(&$$[dataLitIndex], $3); dataLitIndex += strlen($3); }
 
 	| initializer_list ',' BYTE_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "1"); dataLitIndex += strlen("1"); }
 	| initializer_list ',' WORD_OP	{ checkDataLitType(0); $$ = realloc($1, dataLitIndex+1+1); strcpy(&$$[dataLitIndex], "2"); dataLitIndex += strlen("2"); }
@@ -760,7 +757,6 @@ hint_modifier:
 	  %empty 	{ $$ = 0; }
 	| EXTERN_OP	{ $$ = EXTERN_HINT; enforceZeroScope(); }	
 	| GLOBAL_OP	{ $$ = GLOBAL_HINT; enforceZeroScope(); }
-	| CONST_OP	{ $$ = CONST_HINT;  }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -881,14 +877,17 @@ statement:
 	| scope '}'					  	{ closeScope(); $$ = $1; }
 
 
-/*
-	| SET_OP IDENT			    '=' expression ';'
-	| SET_OP	'[' expression ']'  '=' expression ';'
-	| SET_OP IDENT 	'<' constant   '>'  '=' expression ';'
-*/
-
-
-	| SET_OP {poisonRefBool = 1;} prefix_operation {poisonRefBool = 0;} '=' expression ';'	  
+	| IDENT '=' expression ';'	  
+								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+								  temp->type = EQU_TYPE;
+								  memcpy(temp->modString, $3->modString, 32);
+								  temp->childCount = 2;
+								  temp->children[0] = registerNode(registerSymbol(createRef($1)));
+								  temp->children[1] = $6;
+								  compareTypes($3, $6);
+								  $$ = registerNode(temp);
+							       	}
+	| '[' expression ']' '=' expression ';'	  
 								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 								  temp->type = EQU_TYPE;
 								  memcpy(temp->modString, $3->modString, 32);
@@ -898,6 +897,8 @@ statement:
 								  compareTypes($3, $6);
 								  $$ = registerNode(temp);
 							       	}
+
+
 	| IF_OP openScopeHelper expression ')' DO_OP statement	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 								  temp->type = IF_TYPE;
 							 	  memset(temp->modString, NONE_MOD, 32);
