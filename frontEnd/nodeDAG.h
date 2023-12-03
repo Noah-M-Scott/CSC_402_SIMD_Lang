@@ -156,6 +156,7 @@ struct symbolEntry* symbolStackPointer;
 struct symbolEntry* symbolBasePointer;
 
 unsigned long dagSize;
+unsigned long dagStart;
 struct genericNode** DAG;
 
 static int globalTypeIndexStack[16];
@@ -163,21 +164,24 @@ static int globalTypePointer = 0;
 
 
 
-//0 = int, 1 = float, 2 = ident
+//0 = int, 1 = float
+//size checking is left up to the tac to asm translator
 void checkDataLitType(int in){
-	if(in != dataLitType && in != 2){
+	if(in != dataLitType){
 		fprintf(stderr, "ERR: TYPE MISMATCH IN DATA STRING LITERAL, LINE %ld\n", GLOBAL_LINE_NUMBER);
 		exit(1);
 	}
 }
 
 //used for building function (nested) types
+//we need to save the pointer where we where in the last type string
 void pushTypeIndex(){
 	globalTypeIndexStack[globalTypePointer++] = globalTypeIndex;
 }
 
 
 //used to exit nested types
+//we restore the pointer after appending the string we built
 void copyAndPopTypeIndex(char* dest, char* src){
 
 	int temp = globalTypeIndexStack[--globalTypePointer];
@@ -189,61 +193,125 @@ void copyAndPopTypeIndex(char* dest, char* src){
 }
 
 
-//strict type compare (allow scalling immediate ints up), pointers interact with quads
-//strict type compare (allow scalling ints up)
-void compareTypes(struct genericNode* a, struct genericNode* b){
+//strict type compare
+//pointer interact with quads and return pointers
+//immediates can be sized up to match
+//use left as type for dest, unless it's an immediate, then go right
+void compareTypes(struct genericNode* a, struct genericNode* b, char *dest){
 	
-	int hintSkipA = 0;
-	int hintSkipB = 0;
-	int hint2SkipA;
-	int hint2SkipB;
+	int aType, bType;
+	int aIndex, bIndex;
 
+	for(int i = 31; i >= 0; i--)
+	if( a->modString[i] != NONE_MOD ){
+		aType = a->modString[i];		//get a's trailing type	
+		aIndex = i;
+		break;
+	}
 
-	if( a->modString[0] == GLOBAL_HINT || a->modString[0] == EXTERN_HINT || a->modString[0] == CONST_HINT )
-		hintSkipA = 1;
+	for(int i = 31; i >= 0; i--)
+	if( b->modString[i] != NONE_MOD ){
+		bType = b->modString[i];		//get b's trailing type	
+		bIndex = i;
+		break;
+	}
 
-	if( b->modString[0] == GLOBAL_HINT || b->modString[0] == EXTERN_HINT || b->modString[0] == CONST_HINT )
-		hintSkipB = 1;
-
-	if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
-		return;
-
-	if( a->modString[hintSkipA] == VECTOR_MOD )
-		hint2SkipA = hintSkipA + 2;
-
-	if( b->modString[hintSkipB] == VECTOR_MOD )
-		hint2SkipB = hintSkipB + 2;
+	if(aType < 0) //handle vector length bytes
+		aType = a->modString[--aIndex];
 	
-	if( a->modString[hint2SkipA] < QUAD_BASE && a->modString[hint2SkipA] >= BYTE_BASE  )
-		if( b->modString[hint2SkipB] < QUAD_BASE && b->modString[hint2SkipB] >= BYTE_BASE  )
-			if( b->modString[hint2SkipB] < a->modString[hint2SkipA] ){
-				
-				b->modString[hint2SkipB] = a->modString[hint2SkipA]; //scale up
-				
-				if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
-					return;
-			}
+	if(bType < 0) //handle vector length bytes
+		bType = b->modString[--bIndex];
 
-	if( b->modString[hint2SkipB] == SINGLE_BASE && a->modString[hint2SkipA] == DOUBLE_BASE  ){		
-				
-		b->modString[hint2SkipB] = a->modString[hint2SkipA]; //scale up
-				
-		if( memcmp(&(a->modString)[hintSkipA], &(b->modString)[hintSkipB], 31) == 0 )
-			return;
+
+	switch(a){							//ensure a is a valid type
+		case (BYTE_BASE): break;
+		case (WORD_BASE): break;
+		case (LONG_BASE): break;
+		case (QUAD_BASE): break;
+		case (SINGLE_BASE): break;
+		case (DOUBLE_BASE): break;
+		case (POINTER_POSTFIX): break;
+		case (VECTOR_MOD): goto VECTORCOMPARE;
+		default: goto TYPEERROR;
+	}
+
+	switch(b){							//ensure b is a valid type
+		case (BYTE_BASE): break;
+		case (WORD_BASE): break;
+		case (LONG_BASE): break;
+		case (QUAD_BASE): break;
+		case (SINGLE_BASE): break;
+		case (DOUBLE_BASE): break;
+		case (POINTER_POSTFIX): break;
+		case (VECTOR_MOD): goto TYPEERROR; //both a and b have to be vectors
+		default: goto TYPEERROR;
 	}
 
 
+	//raw compare
+	if( aType == bType ){
+		memcpy(dest, a->modString[i], 32) //carry left forward
+		return;
+	}
 
+	//pointer compare
+	if( (aType == POINTER_POSTFIX && bType == QUAD_BASE) ){
+		memcpy(dest, a->modString[i], 32) //carry left pointer forward
+		return;
+	}
+	if( (bType == POINTER_POSTFIX && aType == QUAD_BASE) ){
+		memcpy(dest, b->modString[i], 32) //carry right pointer forward
+		return;
+	}
+
+	//constant (immediate derived) compare
+	//test a for constant
+	if( a->modString[0] == CONST_HINT )
+	if( (aType =< bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
+		memcpy(dest, b->modString[i], 32)										//carry non immediate forward
+		return;
+	}else
+	if( (aType =< bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
+		memcpy(dest, b->modString[i], 32)										//carry non immediate forward
+		return;
+	}
+
+	//test b for constant
+	if( b->modString[0] == CONST_HINT )
+	if( (aType >= bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
+		memcpy(dest, a->modString[i], 32)										//carry non immediate forward
+		return;
+	}else
+	if( (aType >= bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
+		memcpy(dest, a->modString[i], 32)										//carry non immediate forward
+		return;
+	}
+
+	goto TYPEERROR; //don't bother with vector checking for scalers
+
+VECTORCOMPARE:
+	//vector compare
+	if( a->modString[aIndex - 0] == b->modString[bIndex - 0] ) 		//compare sizes
+	if( a->modString[aIndex - 1] == b->modString[bIndex - 1] ) 		//compare VECTOR_MOD
+	if( a->modString[aIndex - 2] == b->modString[bIndex - 2] ){		//compare BASE type
+		memcpy(dest, a->modString[i], 32) //carry left forward
+		return;
+	}
+
+TYPEERROR:
 	fprintf(stderr, "ERR: TYPE MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
 	exit(1);
 }
 
 
-//make sure the argument types match whats expected (allow scalling ints up)
+
+
+
+//make sure the argument types match whats expected (allow scalling consts up)
 void checkArgumentTypes(struct genericNode* function, struct genericNode* param){
 
-
 	//find i start
+	int constFlag = 0;
 	int i = 31;
 	for(; i > -1; i--)
 		if( function->modString[i] == FUNCTION_POSTFIX )
@@ -251,11 +319,17 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 
 	for(int j = 0, w = 0; w < param->childCount; i++){
 		
-		if(param->children[w]->modString[j] == GLOBAL_HINT || param->children[w]->modString[j] == EXTERN_HINT || param->children[w]->modString[j] == CONST_HINT)
+		if(param->children[w]->modString[j] == GLOBAL_HINT || param->children[w]->modString[j] == EXTERN_HINT)
 			j++; //skip the hint section
+
+		if(param->children[w]->modString[j] == CONST_HINT){
+			constFlag = 1; //param is a constant
+			j++;
+		}
 
 		if(param->children[w]->modString[j] == NONE_MOD){
 			j = 0; 
+			constFlag = 0; //reset flag
 			w++; //next child
 		}
 
@@ -265,6 +339,7 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 		}
 
 		//integer scale up
+		if(constFlag)
 		if(function->modString[i] < QUAD_BASE && function->modString[i] >= BYTE_BASE)
 		if(param->children[w]->modString[j] < QUAD_BASE && param->children[w]->modString[j] >= BYTE_BASE)
 		if(param->children[w]->modString[j] < function->modString[i]){
@@ -273,6 +348,7 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 		}
 
 		//floating scale up
+		if(constFlag)
 		if(function->modString[i] == DOUBLE_BASE)
 		if(param->children[w]->modString[j] == SINGLE_BASE){
 			j++;
@@ -312,7 +388,7 @@ void checkLengths(struct genericNode* a, struct genericNode* b){
 //enforce pointer/array
 void enforcePointer(struct genericNode* in){
 	for(int i = 31; i > -1; i--){
-		if(in->modString[i] == POINTER_POSTFIX || in->modString[i] == ARRAY_POSTFIX){
+		if(in->modString[i] == POINTER_POSTFIX){
 			return;
 		}
 
@@ -323,19 +399,29 @@ void enforcePointer(struct genericNode* in){
 	}
 }
 
+
 //ban floats and vectors
 void enforceScalerInts(struct genericNode* in){
 	for(int i = 31; i > -1; i--)
-		if(in->modString[i] == VECTOR_MOD || in->modString[i] == POINTER_POSTFIX || in->modString[i] == FUNCTION_POSTFIX || in->modString[i] == ARRAY_POSTFIX)
+		if(	in->modString[i] == VECTOR_MOD || 
+			in->modString[i] == POINTER_POSTFIX || 
+			in->modString[i] == FUNCTION_POSTFIX || 
+			in->modString[i] == SINGLE_BASE || 
+			in->modString[i] == DOUBLE_BASE)
 			fprintf(stderr, "ERR: TYPE MUST BE SCALER INTEGER, LINE %ld\n", GLOBAL_LINE_NUMBER);
 			exit(1);
 }
 
 //require vectors
 void requireVecs(struct genericNode* in){
-	for(int i = 31; i > -1; i--)
-		if(in->modString[i] == VECTOR_MOD)
+	for(int i = 31; i > -1; i--){
+		if(in->modString[i] < 0)					//vector length
+		if(in->modString[i - 1] == VECTOR_MOD)		//vector mod
 			return;
+
+		if(in->modString[i] != NONE_MOD)
+			break;
+	}
 	
 	//error fallthrough
 	fprintf(stderr, "ERR: TYPE MUST BE VECTOR, LINE %ld\n", GLOBAL_LINE_NUMBER);
@@ -417,9 +503,9 @@ struct genericNode* undoVector(struct genericNode* in){
 
 	int i = 0;
 	for(; i < 32; i++)
-		if(in->modString[i] == VECTOR_MOD)
+		if(in->modString[i] < 0)
+		if(in->modString[i - 1] == VECTOR_MOD)
 			goto startShifting;
-
 
 
 	fprintf(stderr, "ERR: TYPE MUST BE VECTOR, LINE %ld\n", GLOBAL_LINE_NUMBER);
@@ -427,9 +513,10 @@ struct genericNode* undoVector(struct genericNode* in){
 
 
 startShifting:
-	for(int j = 31; j > i; j--)
+	for(int j = 31; j >= i; j--)
 		in->modString[j - 1] = in->modString[j];
 
+	in->modString[30] = NONE_MOD;
 	in->modString[31] = NONE_MOD;
 
 	return in;
@@ -466,7 +553,7 @@ struct genericNode* fetchFunc(struct genericNode* in){
 struct genericNode* fetchMod(struct genericNode* in){
 	
 	for(int i = 31; i > -1; i--){
-		if(in->modString[i] == POINTER_POSTFIX || in->modString[i] == ARRAY_POSTFIX){
+		if(in->modString[i] == POINTER_POSTFIX){
 			in->modString[i] = NONE_MOD;
 			return in;
 		}
@@ -608,8 +695,6 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 
 
 
-
-
 void initNodes(){
 	globalTimestamp = 0;
 	currentScopeCounter = 0;
@@ -618,6 +703,7 @@ void initNodes(){
 	symbolStackPointer = NULL;
 	symbolBasePointer = NULL;
 	dagSize = 0;
+	dagStart = 0;
 	
 	DAG = malloc(512 * sizeof(struct genericNode*));
 	
@@ -636,6 +722,7 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 	long immediateCheck = 0;
 	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but it's the internal way of marking immediates
 		immediateCheck = 1;
+
 
 	//see if it exists
 	struct symbolEntry* current = symbolStackPointer;
@@ -683,6 +770,7 @@ BADCONST:;
 		exit(1);
 	}
 
+SKIPCHECKING:;
 
 	//otherwise register it, and make a node for it
 	in->next = symbolStackPointer;

@@ -368,33 +368,30 @@ multdiv_operation:
 	| multdiv_operation '*' prefix_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = MUL_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		$$ = registerNode(temp);
 	}
 
 	| multdiv_operation '/' prefix_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = DIV_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		$$ = registerNode(temp);
 	}
 
 	| multdiv_operation '%' prefix_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = MOD_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		excludeFloats($1);
 		$$ = registerNode(temp);
 	}
@@ -409,22 +406,20 @@ addsub_operation:
 	| addsub_operation '+' multdiv_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = ADD_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		$$ = registerNode(temp);
 	}
 
 	| addsub_operation '-' multdiv_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = SUB_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		$$ = registerNode(temp);
 	}
 
@@ -439,11 +434,10 @@ shift_operation:
 	| shift_operation GTGT_OP addsub_operation	{ 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = RSH_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		excludeFloats($1);
 		$$ = registerNode(temp);
 	}
@@ -451,11 +445,10 @@ shift_operation:
 	| shift_operation LTLT_OP addsub_operation	{ 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = LSH_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		excludeFloats($1);
 		$$ = registerNode(temp);
 	}
@@ -469,44 +462,40 @@ relation_operation:
 	| relation_operation '<' shift_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = LT_TYPE;
-		memcpy(temp->modString, $1->modString, 32); // typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type; typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		$$ = registerNode(temp);
   	}
 
 	| relation_operation '>' shift_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = GT_TYPE;
-		memcpy(temp->modString, $1->modString, 32); // typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type; typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		$$ = registerNode(temp);
 	}
 
 	| relation_operation LTEQU_OP shift_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = LT_EQU_TYPE;
-		memcpy(temp->modString, $1->modString, 32); // typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type; typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		$$ = registerNode(temp);
 	}
 
 	| relation_operation GTEQU_OP shift_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = GT_EQU_TYPE;
-		memcpy(temp->modString, $1->modString, 32); // typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type; typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		$$ = registerNode(temp);
 	}
 	;
@@ -519,22 +508,20 @@ equality_operation:
 	| equality_operation EQUEQU_OP relation_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = EQU_EQU_TYPE;
-		memcpy(temp->modString, $1->modString, 32); // typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type; typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		$$ = registerNode(temp);
 	}
 
 	| equality_operation NOTEQU_OP relation_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = NOT_EQU_TYPE;
-		memcpy(temp->modString, $1->modString, 32); // typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type; typeA > typeA = typeA; only thing that matters is 0 = FALSE, !0 = TRUE
 		$$ = registerNode(temp);
 	}
 	;
@@ -547,11 +534,10 @@ bitwise_and_operation:
 	| bitwise_and_operation '&' equality_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = AND_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		excludeFloats($1);
 		$$ = registerNode(temp);
 	}
@@ -566,11 +552,10 @@ bitwise_eor_operation:
 	| bitwise_eor_operation '^' bitwise_and_operation { 
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = EOR_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		excludeFloats($1);
 		$$ = registerNode(temp);
 	}
@@ -584,11 +569,10 @@ bitwise_or_operation:
 	| bitwise_or_operation '|' bitwise_eor_operation {
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = OR_TYPE;
-		memcpy(temp->modString, $1->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
-		compareTypes($1, $3);
+		compareTypes($1, $3, temp->modString); //check and select type
 		excludeFloats($1);
 		$$ = registerNode(temp);
 	}
@@ -638,7 +622,7 @@ ternary_operation:
 		temp->children[0] = $1;
 		temp->children[1] = $3;
 		temp->children[2] = $5;
-		compareTypes($3, $5);
+		compareTypes($3, $5, temp->modString); //check and select type
 		$$ = registerNode(temp);
 	}
 	;
@@ -673,11 +657,10 @@ variable_declaration:
 		registerSymbol(temp);											//register the symbol
 		struct genericNode* tempequ = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		tempequ->type = EQU_TYPE;												//creating a set operation...
-		memcpy(tempequ->modString, $4->modString, 32);
 		tempequ->childCount = 2;
 		tempequ->children[0] = registerNode(registerSymbol(createRef($2)));  	//referencing the symbol we just made
 		tempequ->children[1] = $4;
-		compareTypes(tempequ->children[0], $4);
+		compareTypes(tempequ->children[0], $4, tempequ->modString); 			//check and select type
 		$$ = registerNode(tempequ);												//pass back the set operation
 	}
 	;
@@ -833,23 +816,22 @@ statement:
 		clobberStores(); 																					//clober all symbol stores
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = EQU_TYPE;
-		memcpy(temp->modString, $3->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = registerNode(registerSymbol(createRef($1)));				//create a reference on the right side
 		temp->children[1] = $3;
-		compareTypes(temp->children[0], $3);
+		compareTypes(temp->children[0], $3, temp->modString);							//compare and check types
 		$$ = registerNode(temp);
 	}
 
 	| '[' expression ']' '=' expression ';' { 
-		clobberStores();																					//clober all symbol stores
+		clobberStores();																//clober all symbol stores
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = EQU_TYPE;
 		memcpy(temp->modString, $2->modString, 32);
 		temp->childCount = 2;
-		temp->children[0] = $2;				//this is a raw store
+		temp->children[0] = $2;					//this is a raw store
 		temp->children[1] = $5;
-		compareTypes($2, $5);
+		compareTypes($2, $5, temp->modString);	//compare and check types
 		$$ = registerNode(temp);
 	}
 
