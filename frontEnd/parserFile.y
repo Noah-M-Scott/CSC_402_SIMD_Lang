@@ -96,7 +96,6 @@ FILE *outFile;
 %nterm <struct genericNode*> declaration
 %nterm <struct genericNode*> variable_declaration
 %nterm <struct genericNode*> function_declaration
-%nterm <struct genericNode*> declaration_init_list
 %nterm <char> hint_modifier
 %nterm <char*> base_type
 %nterm <char*> base_type_postfix
@@ -169,7 +168,7 @@ initializer_list:
 	| initializer_list ',' DECIMAL { 
 		checkDataLitType(0); 
 		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 1); 
-		strcpy(&$$[dataLitIndex], $3); 
+		strcpy(&$$[dataLitIndex], $3); //indexing $$, then getting it's reference: &
 		dataLitIndex += strlen($3); 
 	}
 
@@ -653,23 +652,33 @@ expression:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 variable_declaration:
-	  type_name IDENT '=' expression ';' { 
-		closeFalseScope(); //close the previous false scope from typename
-		excludeFunctionsType(globalIPT);
-		createIPTSymbol($1); //create a symbol using the inprocess type
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-		temp->type = EQU_TYPE;
-		memcpy(temp->modString, $3->modString, 32);
-		temp->childCount = 2;
-		temp->children[0] = registerNode(registerSymbol(createRef($1)));
-		temp->children[1] = $3;
-		compareTypes(temp->children[0], $3);
-		struct genericNode* temp2 = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-		temp2->type = DEC_LIST_TYPE;	//create the dec list header
-		memset(temp->modString, NONE_MOD, 32);
-		temp2->childCount = 1;
-		temp2->children[0] = temp;
-		$$ = registerNode(temp2);	//create the head
+
+	  type_name IDENT ';' { 
+		closeFalseScope(); 												//close the previous false scope from typename
+		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new symbol
+		memcpy(temp->modString, $1, 32);								//set its type 
+		memcpy(temp->name, $2, 128);									//set its name
+		temp->innerScope = NULL;										//no inner scope (isn't a function)
+		excludeFunctionsType($1);										//no pure functions
+		$$ = registerNode(registerSymbol(temp));						//create the symbol, pass back a reference
+	}
+
+	| type_name IDENT '=' expression ';' {
+		closeFalseScope(); 												//close the previous false scope from typename
+		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new symbol
+		memcpy(temp->modString, $1, 32);								//set its type 
+		memcpy(temp->name, $2, 128);									//set its name
+		temp->innerScope = NULL;										//no inner scope (isn't a function)
+		excludeFunctionsType($1);		 								//no pure functions
+		registerSymbol(temp);											//register the symbol
+		struct genericNode* tempequ = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		tempequ->type = EQU_TYPE;												//creating a set operation...
+		memcpy(tempequ->modString, $4->modString, 32);
+		tempequ->childCount = 2;
+		tempequ->children[0] = registerNode(registerSymbol(createRef($2)));  	//referencing the symbol we just made
+		tempequ->children[1] = $4;
+		compareTypes(tempequ->children[0], $4);
+		$$ = registerNode(tempequ);												//pass back the set operation
 	}
 	;
 
@@ -677,120 +686,98 @@ variable_declaration:
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function_declaration:
 	  type_name IDENT scope	{ 
-		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
-		memcpy(temp->modString, $1, 32);
-		memcpy(temp->name, $2, 128);
-		temp->innerScope = $3;
-		requireFunctionsType($1);
-		enforceZeroScope();
-		closeFalseScope();			//close the false scope created by function mod
-		$$ = registerNodeFunction(registerSymbol(temp));
+		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//new symbol
+		memcpy(temp->modString, $1, 32);								//type
+		memcpy(temp->name, $2, 128);									//name
+		temp->innerScope = $3;											//has a scope
+		requireFunctionsType($1);										//needs to be a purefunction
+		enforceZeroScope();												//on the zeroth scope
+		$$ = registerNodeFunction(registerSymbol(temp));				//register and return
+		closeFalseScope();			//close the false scope created by function mod, we close it late here, so a function can call itself
 	}
 	;
 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 declaration:
-	  variable_declaration		 { $$ = $1; }
-	| function_declaration		 { $$ = $1; }
+	  variable_declaration		 { $$ = $1; } //passthrough
+	| function_declaration		 { $$ = $1; } //^
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 hint_modifier:
 	  %empty 	{ $$ = 0; }
-	| EXTERN_OP	{ $$ = EXTERN_HINT; enforceZeroScope(); }	
-	| GLOBAL_OP	{ $$ = GLOBAL_HINT; enforceZeroScope(); }
+	| EXTERN_OP	{ $$ = EXTERN_HINT; enforceZeroScope(); }	//mark something as extern
+	| GLOBAL_OP	{ $$ = GLOBAL_HINT; enforceZeroScope(); }	//mark something as persisting between files
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 base_type:
-	  hint_modifier VOID_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = VOID_BASE;   $$ = temp; }
-	| hint_modifier BYTE_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = BYTE_BASE;   $$ = temp; }
-	| hint_modifier WORD_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = WORD_BASE;   $$ = temp; }
-	| hint_modifier LONG_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = LONG_BASE;   $$ = temp; }
-	| hint_modifier QUAD_OP		{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = QUAD_BASE;   $$ = temp; }
-	| hint_modifier SINGLE_OP	{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = SINGLE_BASE; $$ = temp; }
-	| hint_modifier DOUBLE_OP	{ char *temp = malloc(32); globalTypeIndex = 1; int bump = $1; temp[0] = $1; temp[(bump?1:0)] = DOUBLE_BASE; $$ = temp; }
+	  hint_modifier VOID_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = VOID_BASE;   $$ = temp; }
+	| hint_modifier BYTE_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = BYTE_BASE;   $$ = temp; }
+	| hint_modifier WORD_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = WORD_BASE;   $$ = temp; }
+	| hint_modifier LONG_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = LONG_BASE;   $$ = temp; }
+	| hint_modifier QUAD_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = QUAD_BASE;   $$ = temp; }
+	| hint_modifier SINGLE_OP	{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = SINGLE_BASE; $$ = temp; }
+	| hint_modifier DOUBLE_OP	{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = DOUBLE_BASE; $$ = temp; }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 base_type_postfix:
 	  base_type				{ $$ = $1; }
+
 	| base_type '<' constant '>' { 
-		$1[2] = $1[0]; 
-		$1[0] = VECTOR_MOD; 
-		enforceScalerInts($3);
+		$1[globalTypeIndex + 2] = $1[globalTypeIndex];	//as a vector is VECTORMOD SIZE BASETYPE, we have to move BASETYPE
+		$1[globalTypeIndex] = VECTOR_MOD;
+		enforceScalerInts($3);							//vector size must be an int
 		long temp;
-		sscanf( ((struct symbolEntry*)($3->children[0]))->constValue, "%ld", &temp);
+		sscanf( ((struct symbolEntry*)($3->children[0]))->constValue, "%ld", &temp); //extract the constant size from the constant
 		if(temp > 128 || temp < 1){
-			fprintf(stderr, "ERR: vector constant too large (not 1 to 128), %ld", temp);
+			fprintf(stderr, "ERR: vector constant too large (not 1 to 128), %ld", temp); //vectors are short, 1 to 128 elements
 			exit(1);
 		}
-		$1[1] = (char)(-temp);
+		$1[globalTypeIndex + 1] = (char)(-temp);	//enter length, vector lengths are stored negative to avoid conflicts with the TYPE markers
 		globalTypeIndex += 2;
 		$$ = $1;
-	}
-
-	| SHARED_OP base_type			{ $2[1] = $2[0]; $2[0] = SHARED_MOD; globalTypeIndex += 1; $$ = $2; }
-
-	| SHARED_OP base_type '<' constant '>' { 
-		$2[3] = $2[0]; 
-		$2[0] = SHARED_MOD; 
-		$2[1] = VECTOR_MOD; 
-		enforceScalerInts($4);
-		long temp;
-		sscanf( ((struct symbolEntry*)($4->children[0]))->constValue, "%ld", &temp);
-		if(temp > 128 || temp < 1){
-			fprintf(stderr, "ERR: vector constant too large (not 1 to 128), %ld", temp);
-			exit(1);
-		}
-		globalTypeIndex += 3;
-		$2[2] = (char)(-temp);
-		$$ = $2;
-	}
-	
+	}	
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pointer_modifier:
-	  '[' base_type_postfix ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| '[' pointer_modifier  ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| '[' function_modifier ']'		{ $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| '[' SHARED_OP base_type_postfix ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| '[' SHARED_OP pointer_modifier  ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
-	| '[' SHARED_OP function_modifier ']'	{ $1[globalTypeIndex++] = SHARED_MOD; $1[globalTypeIndex++] = POINTER_POSTFIX; $$ = $1; }
+	  '[' base_type_postfix ']'		{ $2[globalTypeIndex++] = POINTER_POSTFIX; $$ = $2; } 
+	| '[' pointer_modifier  ']'		{ $2[globalTypeIndex++] = POINTER_POSTFIX; $$ = $2; } //mark as pointer
+	| '[' function_modifier ']'		{ $2[globalTypeIndex++] = POINTER_POSTFIX; $$ = $2; }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function_modbase:
-	  base_type_postfix '(' { openFalseScope(); $1[globalTypeIndex++] = FUNCTION_POSTFIX; pushTypeIndex(); $$ = $1; }
- 	| pointer_modifier  '(' { openFalseScope(); $1[globalTypeIndex++] = FUNCTION_POSTFIX; pushTypeIndex(); $$ = $1; }
+	  base_type_postfix '(' { openFalseScope(); $1[globalTypeIndex++] = FUNCTION_POSTFIX; $$ = $1; } //mark as function
+ 	| pointer_modifier  '(' { openFalseScope(); $1[globalTypeIndex++] = FUNCTION_POSTFIX; $$ = $1; } //we open falsescope here
 	;
 
 
 function_modifier:
-	  function_modbase ')' { 
-		copyAndPopTypeIndex($1, NULL); 
+	  function_modbase ')' { //finished the function, pop the old index, nothing to copy, no params
 		$1[globalTypeIndex++] = CLOSE_FUNCTION_POSTFIX; 
 		$$ = $1; 
 	}
 
-	| function_modbase parameter_list ')' { 
+	| function_modbase parameter_list ')' { //finished the function, pop the old index, copy the param types
 		copyAndPopTypeIndex($1, $2); 
 		free($2); 
 		$1[globalTypeIndex++] = CLOSE_FUNCTION_POSTFIX; 
 		$$ = $1; 
 	}
 
-	| function_modbase parameter_list ',' DOTDOTDOT_OP ')' { 
+	| function_modbase parameter_list ',' DOTDOTDOT_OP ')' { //finished the function, pop the old index, copy the param types
 		copyAndPopTypeIndex($1, $2); 
 		free($2); 
-		$1[globalTypeIndex++] = DOTDOTDOT_BASE; 
+		$1[globalTypeIndex++] = DOTDOTDOT_BASE; 			//add a marker to mark this function as being "..." suportive
 		$1[globalTypeIndex++] = CLOSE_FUNCTION_POSTFIX; 
 		$$ = $1;
 	}
 
-	| function_modbase DOTDOTDOT_OP ')' {
+	| function_modbase DOTDOTDOT_OP ')' { //empty function, mark "..." suportive
 		$1[globalTypeIndex++] = DOTDOTDOT_BASE; 
 		$1[globalTypeIndex++] = CLOSE_FUNCTION_POSTFIX; 
 		$$ = $1; 
@@ -799,9 +786,9 @@ function_modifier:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 type_name:
-	  base_type_postfix	{ memcpy(globalIPT, $1, 32); $$ = $1; }
-	| function_modifier	{ memcpy(globalIPT, $1, 32); $$ = $1; }
-	| pointer_modifier	{ memcpy(globalIPT, $1, 32); $$ = $1; }
+	  base_type_postfix	{ $$ = $1; }
+	| function_modifier	{ $$ = $1; }
+	| pointer_modifier	{ $$ = $1; }
 	;
 
 
@@ -811,17 +798,14 @@ pushTypeIndexR: %empty {pushTypeIndex();}
 	;
 
 parameter_list:
-	  type_name						{ $$ = $1; }
 
-	| type_name IDENT { 
+	  pushTypeIndexR type_name IDENT { 
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
-		memcpy(temp->modString, $1, 32);
-		memcpy(temp->name, $2, 128);
+		memcpy(temp->modString, $2, 32);
+		memcpy(temp->name, $3, 128);
 		registerSymbol(temp);
-		$$ = $1;
+		$$ = $2;						// don't pop here as this typename will be merged repeatedly, then merged with the final one
  	}
-
-	| parameter_list ',' pushTypeIndexR type_name		{ copyAndPopTypeIndex($1, $4); free($4); $$ = $1; }
 
 	| parameter_list ',' pushTypeIndexR type_name IDENT	{ 
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
@@ -835,168 +819,207 @@ parameter_list:
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-openScopeHelper: '(' {openScope(); } 
+openScopeHelper: '(' {openScope(); }  //control flow structer's () are part of their scope
 	;
 
 statement:
-	  ';'						  	{ $$ = NULL; }
-	| expression ';'				  	{ $$ = $1; }
-	| declaration					  	{ $$ = $1; }
-	| scope '}'					  	{ closeScope(); $$ = $1; }
+	  ';'					{ $$ = NULL; }
+	| expression ';'		{ $$ = $1; }
+	| declaration			{ $$ = $1; }
+	| scope '}'				{ closeScope(); $$ = $1; }
 
 
-	| IDENT '=' expression ';'	  
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = EQU_TYPE;
-								  memcpy(temp->modString, $3->modString, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = registerNode(registerSymbol(createRef($1)));
-								  temp->children[1] = $6;
-								  compareTypes($3, $6);
-								  $$ = registerNode(temp);
-							       	}
-	| '[' expression ']' '=' expression ';'	  
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = EQU_TYPE;
-								  memcpy(temp->modString, $3->modString, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = $3;
-								  temp->children[1] = $6;
-								  compareTypes($3, $6);
-								  $$ = registerNode(temp);
-							       	}
+	| IDENT '=' expression ';' {
+		clobberStores(); 																					//clober all symbol stores
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = EQU_TYPE;
+		memcpy(temp->modString, $3->modString, 32);
+		temp->childCount = 2;
+		temp->children[0] = registerNode(registerSymbol(createRef($1)));				//create a reference on the right side
+		temp->children[1] = $3;
+		compareTypes(temp->children[0], $3);
+		$$ = registerNode(temp);
+	}
+
+	| '[' expression ']' '=' expression ';' { 
+		clobberStores();																					//clober all symbol stores
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = EQU_TYPE;
+		memcpy(temp->modString, $2->modString, 32);
+		temp->childCount = 2;
+		temp->children[0] = $2;				//this is a raw store
+		temp->children[1] = $5;
+		compareTypes($2, $5);
+		$$ = registerNode(temp);
+	}
 
 
-	| IF_OP openScopeHelper expression ')' DO_OP statement	{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = IF_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = $3;
-								  temp->children[1] = $6;
-								  closeScope();
-								  $$ = registerNode(temp);
-								}
+	| IF_OP openScopeHelper expression ')' statement { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = IF_TYPE;
+		memset(temp->modString, NONE_MOD, 32);	//control flow doesn't have a type
+		temp->childCount = 2;
+		temp->children[0] = $3;
+		temp->children[1] = $5;
+		closeScope();
+		$$ = registerNode(temp);
+	}
 
-	| IF_OP openScopeHelper expression ')' THEN_OP statement ELSE_OP statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 3);
-								  temp->type = IF_ELSE_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 3;
-								  temp->children[0] = $3;
-								  temp->children[1] = $6;
-								  temp->children[2] = $8;
-								  closeScope();
-								  $$ = registerNode(temp);
-								}
-	| WHILE_OP openScopeHelper expression ')' statement  { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = WHILE_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = $3;
-								  temp->children[1] = $5;
-								  closeScope();
-								  $$ = registerNode(temp);
-								}
+	| IF_OP openScopeHelper expression ')' statement ELSE_OP statement { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 3);
+		temp->type = IF_ELSE_TYPE;
+		memset(temp->modString, NONE_MOD, 32);	//control flow doesn't have a type
+		temp->childCount = 3;
+		temp->children[0] = $3;
+		temp->children[1] = $5;
+		temp->children[2] = $7;
+		closeScope();
+		$$ = registerNode(temp);
+	}
 
-	| DO_OP statement WHILE_OP openScopeHelper expression ')' ';'	
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = IF_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = $2;
-								  temp->children[1] = $5;
-								  closeScope();
-								  $$ = registerNode(temp);
-								}
-	| BREAK_OP ';'						{ struct genericNode* temp = malloc(sizeof(struct genericNode));
-								  temp->type = BREAK_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 0;
-								  $$ = registerNode(temp);
-								}
-	| CONTINUE_OP ';'					{ struct genericNode* temp = malloc(sizeof(struct genericNode));
-								  temp->type = CONTINUE_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 0;
-								  $$ = registerNode(temp);
-								}
+	| WHILE_OP openScopeHelper expression ')' statement  {
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = WHILE_TYPE;
+		memset(temp->modString, NONE_MOD, 32);	//control flow doesn't have a type
+		temp->childCount = 2;
+		temp->children[0] = $3;
+		temp->children[1] = $5;
+		closeScope();
+		$$ = registerNode(temp);
+	}
 
-	| SWITCH_OP openScopeHelper expression ')' statement { struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = SWITCH_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = $3;
-								  temp->children[1] = $5;
-								  closeScope();
-								  $$ = registerNode(temp);
-								}
-	| CASE_OP constant ':' statement			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-								  temp->type = CASE_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 2;
-								  temp->children[0] = $2;
-								  temp->children[1] = $4;
-								  $$ = registerNode(temp);
-								}
-	| DEFAULT_OP ':' statement				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 1);
-								  temp->type = DEFAULT_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 1;
-								  temp->children[0] = $3;
-								  $$ = registerNode(temp);
-								}
-	| RETURN_OP ';'						{ struct genericNode* temp = malloc(sizeof(struct genericNode));
-								  temp->type = RETURN_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 0;
-								  $$ = registerNode(temp);
-								}
-	| RETURN_OP expression ';'				{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 1);
-								  temp->type = RETURN_EXP_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 1;
-								  temp->children[0] = $2;
-								  $$ = registerNode(temp);
-								}
-	| IDENT ':' statement					{ $$ = appendAChild(registerNode(registerSymbol(createLabel($1))), $3); }
-	| GOTO_OP IDENT ';'					{ $$ = registerNode(createLabelJump($2)); }
+	| DO_OP statement WHILE_OP openScopeHelper expression ')' ';' { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = IF_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 2;
+		temp->children[0] = $2;
+		temp->children[1] = $5;
+		closeScope();
+		$$ = registerNode(temp);
+	}
+							
+	| BREAK_OP ';' {
+		struct genericNode* temp = malloc(sizeof(struct genericNode));
+		temp->type = BREAK_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 0;
+		$$ = registerNode(temp);
+	}
 
-	| FOR_OP openScopeHelper statement            ';' statement ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = NULL;
-								  temp->children[2] = $5;
-								  temp->children[3] = $7;
-								  $$ = registerNode(temp);
-								}
+	| CONTINUE_OP ';' { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode));
+		temp->type = CONTINUE_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 0;
+		$$ = registerNode(temp);
+	}
 
-	| FOR_OP openScopeHelper statement expression ';' statement ')' statement
-								{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
-								  temp->type = FOR_TYPE;
-							 	  memset(temp->modString, NONE_MOD, 32);
-								  temp->childCount = 4;
-								  temp->children[0] = $3;
-								  temp->children[1] = $4;
-								  temp->children[2] = $6;
-								  temp->children[3] = $8;
-								  $$ = registerNode(temp);
-								}
+	| SWITCH_OP openScopeHelper expression ')' statement { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = SWITCH_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 2;
+		temp->children[0] = $3;
+		temp->children[1] = $5;
+		closeScope();
+		$$ = registerNode(temp);
+	}
+
+	| CASE_OP constant ':' statement { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
+		temp->type = CASE_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 2;
+		temp->children[0] = $2;
+		temp->children[1] = $4;
+		$$ = registerNode(temp);
+	}
+
+	| DEFAULT_OP ':' statement {
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 1);
+		temp->type = DEFAULT_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 1;
+		temp->children[0] = $3;
+		$$ = registerNode(temp);
+	}
+
+	| RETURN_OP ';' {
+		struct genericNode* temp = malloc(sizeof(struct genericNode));
+		temp->type = RETURN_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 0;
+		$$ = registerNode(temp);
+	}
+
+	| RETURN_OP expression ';' { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 1);
+		temp->type = RETURN_EXP_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 1;
+		temp->children[0] = $2;
+		$$ = registerNode(temp);
+	}
+	
+	| IDENT ':' statement {
+		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new label symbol
+		memset(temp->modString, NONE_MOD, 32);							//set its type..
+		temp->modString[0] = LABEL_BASE;								//..as label
+		memcpy(temp->name, $1, 128);									//set its name
+		temp->innerScope = NULL;										//no inner scope (isn't a function)
+		$$ = appendAChild(registerNode(registerSymbol(temp)), $3); 
+	}
+
+	| GOTO_OP IDENT ';'	{ 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 1);
+		temp->type = GOTO_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 1;
+		temp->children[0] = registerNode(registerSymbol(createRef($2)));
+		$$ = registerNode(temp);
+	}
+
+	| FOR_OP openScopeHelper statement            ';' statement ')' statement {
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
+		temp->type = FOR_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 4;
+		temp->children[0] = $3;
+		temp->children[1] = NULL;
+		temp->children[2] = $5;
+		temp->children[3] = $7;
+		$$ = registerNode(temp);
+	}
+
+	| FOR_OP openScopeHelper statement expression ';' statement ')' statement {
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 4);
+		temp->type = FOR_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 4;
+		temp->children[0] = $3;
+		temp->children[1] = $4;
+		temp->children[2] = $6;
+		temp->children[3] = $8;
+		$$ = registerNode(temp);
+	}
+
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 scope:
-	  '{' statement			{ struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-					  temp->type = SCOPE_TYPE;
-				 	  memset(temp->modString, NONE_MOD, 32);
-					  temp->childCount = 1;
-					  temp->children[0] = $2;
-					  openScope();
-					  $$ = registerNode(temp);
-					}
-	| scope statement		{ $$ = appendAChild($1, $2); }
+
+	  '{' statement { 
+		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
+		temp->type = SCOPE_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
+		temp->childCount = 1;
+		temp->children[0] = $2;
+		openScope();
+		$$ = registerNode(temp);
+	}
+
+	| scope statement		{ $$ = appendAChild($1, $2); } //link statements together in a scope
 	;
 
 

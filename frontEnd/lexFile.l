@@ -29,10 +29,6 @@
 "<<"		{ if(IN_COM) continue; return LTLT_OP; }
 ">>"		{ if(IN_COM) continue; return GTGT_OP; }
 "=="		{ if(IN_COM) continue; return EQUEQU_OP; }
-"|>"		{ if(IN_COM) continue; return UGT_OP; }
-"|<"		{ if(IN_COM) continue; return ULT_OP; }
-"|>="		{ if(IN_COM) continue; return UGTEQU_OP; }
-"|<="		{ if(IN_COM) continue; return ULTEQU_OP; }
 ">="		{ if(IN_COM) continue; return GTEQU_OP; }
 "<="		{ if(IN_COM) continue; return LTEQU_OP; }
 "!="		{ if(IN_COM) continue; return NOTEQU_OP; }
@@ -71,7 +67,6 @@
 "DEFINE"	{ if(IN_COM) continue; return DEFINE_OP; }
 "UNDEF"		{ if(IN_COM) continue; return UNDEF_OP; }
 "NOTHING"	{ if(IN_COM) continue; return NOTHING_OP; }
-"SET"		{ if(IN_COM) continue; return SET_OP; }
 "BLOCK"		{ if(IN_COM) continue; return BLOCK_OP; }
 
 
@@ -79,6 +74,10 @@
 "\""[.]+"\""		{ if(IN_COM) continue; yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
 
 
+
+%%
+
+/*
 [a-zA-Z][a-zA-Z0-9_]*	{ if(IN_COM) continue; 
 			  switch(checkConst(yytext){ 
 				case(0): yylval.IDENT = strdup(yytextdup); 
@@ -104,10 +103,7 @@
 				return FLOAT; 
 			  }
 			}
-
-
-%%
-
+*/
 
 //int yywarp(void) {return 1;}
 

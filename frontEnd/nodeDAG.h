@@ -8,7 +8,6 @@ enum {
 	DOTDOTDOT_TYPE,
 	ARGUMENT_LIST_TYPE,
 	PERMUTE_LIST_TYPE,
-	DEC_LIST_TYPE,
 	FOR_TYPE,
 	GOTO_TYPE,
 	LABEL_TYPE,
@@ -34,20 +33,10 @@ enum {
 	AND_TYPE,
 	EQU_EQU_TYPE,
 	NOT_EQU_TYPE,
-	EQU_EQU_TERN_TYPE,
-	NOT_EQU_TERN_TYPE,
 	LT_TYPE,
 	GT_TYPE,
-	ULT_TYPE,
-	UGT_TYPE,
-	ULT_EQU_TYPE,
-	UGT_EQU_TYPE,
 	LT_EQU_TYPE,
 	GT_EQU_TYPE,
-	LT_TERN_TYPE,
-	GT_TERN_TYPE,
-	LT_EQU_TERN_TYPE,
-	GT_EQU_TERN_TYPE,
 	LSH_TYPE,
 	RSH_TYPE,
 	SUB_TYPE,
@@ -56,7 +45,6 @@ enum {
 	DIV_TYPE,
 	MUL_TYPE,
 	PUNN_TYPE,
-	CONV_TYPE,
 	RUN_SUM_TYPE,
 	RUN_DIF_TYPE,
 	DEREF_TYPE,
@@ -68,8 +56,7 @@ enum {
 	VEC_INDEX_TYPE,
 	CALL_TYPE,
 	CALL_PARAM_TYPE,
-	INDEX_TYPE,
-	AMP_INDEX_TYPE
+	INDEX_TYPE
 };
 
 
@@ -92,7 +79,8 @@ enum {
 	FUNCTION_POSTFIX,
 	CLOSE_FUNCTION_POSTFIX,
 	SHARED_MOD,
-	VECTOR_MOD
+	VECTOR_MOD,
+	LABEL_BASE
 };
 
 
@@ -170,11 +158,8 @@ struct symbolEntry* symbolBasePointer;
 unsigned long dagSize;
 struct genericNode** DAG;
 
-
-
 static int globalTypeIndexStack[16];
 static int globalTypePointer = 0;
-
 
 
 
@@ -186,8 +171,6 @@ void checkDataLitType(int in){
 	}
 }
 
-
-
 //used for building function (nested) types
 void pushTypeIndex(){
 	globalTypeIndexStack[globalTypePointer++] = globalTypeIndex;
@@ -198,33 +181,12 @@ void pushTypeIndex(){
 void copyAndPopTypeIndex(char* dest, char* src){
 
 	int temp = globalTypeIndexStack[--globalTypePointer];
-	
+
 	for(int i = 0; i < globalTypeIndex; i++, temp++)
 		dest[temp] = src[i];
 	
 	globalTypeIndex = temp;
 }
-
-
-void createIPTSymbol(char* name){
-
-
-}
-
-
-
-struct symbolEntry* createLabel(char* name){
-
-
-}
-
-
-struct genericNode* createLabelJump(char* name){
-
-}
-
-
-
 
 
 //strict type compare (allow scalling immediate ints up), pointers interact with quads
@@ -666,7 +628,8 @@ void initNodes(){
 }
 
 
-// take in an unregistered symbol, register it, produce a unregistered node
+// take in an unregistered symbol, register it, produce a unregistered node; delay errs on functions
+// treat labels differently
 struct genericNode* registerSymbol(struct symbolEntry* in){
 
 	//see if it's an immediate
@@ -704,9 +667,6 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 				if(temp->modString[i] != NONE_MOD)
 					break;
 			}
-
-			if(poisonRefBool && !immediateCheck) //this is a poison reference to a non immediate, and the timestamp on the symbol needs to be updated
-				current->timestamp = globalTimestamp++;
 
 			free(in);	//get rid of the canidate Symbol
 			return temp;
@@ -754,6 +714,7 @@ void closeScope(){
 
 static int falseScopeBool = 0;
 
+//opens a false scope to include function parameters, won't double up for things like functions that return functions
 void openFalseScope(){
 
 	if(falseScopeBool == 1)
@@ -765,6 +726,7 @@ void openFalseScope(){
 	currentScopeCounter++;
 }
 
+//closes the false scope above
 void closeFalseScope(){
 
 	if(falseScopeBool == 0)
@@ -799,6 +761,16 @@ static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode
 	return NULL;
 }
 
+void clobberStores(){
+	
+	struct symbolEntry* current = symbolStackPointer;
+	while(current != NULL){
+		current->timestamp = globalTimestamp++;			//go through every symbol and mark them as being updated
+		current = current->next;
+	}
+
+	return;
+}
 
 //mode = 1 -> don't allow dangling function types; mode = 0 -> allow dangling function types
 struct genericNode* registerNodeOperator(struct genericNode* in, int mode){
