@@ -1,0 +1,2087 @@
+Starting parse
+Entering state 0
+Stack now 0
+Reducing stack by rule 1 (line 147):
+-> $$ = nterm input ()
+Entering state 1
+Stack now 0 1
+Reading a token
+Next token is token LONG_OP ()
+Shifting token LONG_OP ()
+Entering state 26
+Stack now 0 1 26
+Reducing stack by rule 81 (line 748):
+   $1 = token LONG_OP ()
+-> $$ = nterm base_type ()
+Entering state 63
+Stack now 0 1 63
+Reading a token
+Next token is token OPENPAR_OP ()
+Reducing stack by rule 92 (line 763):
+   $1 = nterm base_type ()
+-> $$ = nterm base_type_postfix ()
+Entering state 64
+Stack now 0 1 64
+Next token is token OPENPAR_OP ()
+Shifting token OPENPAR_OP ()
+Entering state 140
+Stack now 0 1 64 140
+Reducing stack by rule 97 (line 790):
+   $1 = nterm base_type_postfix ()
+   $2 = token OPENPAR_OP ()
+-> $$ = nterm function_modbase ()
+Entering state 66
+Stack now 0 1 66
+Reading a token
+Next token is token LONG_OP ()
+Reducing stack by rule 106 (line 833):
+-> $$ = nterm pushTypeIndexR ()
+Entering state 144
+Stack now 0 1 66 144
+Next token is token LONG_OP ()
+Shifting token LONG_OP ()
+Entering state 26
+Stack now 0 1 66 144 26
+Reducing stack by rule 81 (line 748):
+   $1 = token LONG_OP ()
+-> $$ = nterm base_type ()
+Entering state 63
+Stack now 0 1 66 144 63
+Reading a token
+Next token is token IDENT ()
+Reducing stack by rule 92 (line 763):
+   $1 = nterm base_type ()
+-> $$ = nterm base_type_postfix ()
+Entering state 64
+Stack now 0 1 66 144 64
+Next token is token IDENT ()
+Reducing stack by rule 103 (line 825):
+   $1 = nterm base_type_postfix ()
+-> $$ = nterm type_name ()
+Entering state 200
+Stack now 0 1 66 144 200
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 222
+Stack now 0 1 66 144 200 222
+Reducing stack by rule 107 (line 838):
+   $1 = nterm pushTypeIndexR ()
+   $2 = nterm type_name ()
+   $3 = token IDENT ()
+-> $$ = nterm parameter_list ()
+Entering state 145
+Stack now 0 1 66 145
+Reading a token
+Next token is token CLOSEPAR_OP ()
+Shifting token CLOSEPAR_OP ()
+Entering state 201
+Stack now 0 1 66 145 201
+Reducing stack by rule 100 (line 801):
+   $1 = nterm function_modbase ()
+   $2 = nterm parameter_list ()
+   $3 = token CLOSEPAR_OP ()
+-> $$ = nterm function_modifier ()
+Entering state 67
+Stack now 0 1 67
+Reducing stack by rule 104 (line 826):
+   $1 = nterm function_modifier ()
+-> $$ = nterm type_name ()
+Entering state 68
+Stack now 0 1 68
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 146
+Stack now 0 1 68 146
+Reading a token
+Next token is token OPENSEMI_OP ()
+Shifting token OPENSEMI_OP ()
+Entering state 18
+Stack now 0 1 68 146 18
+Reducing stack by rule 131 (line 1049):
+   $1 = token OPENSEMI_OP ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 7
+Stack now 0 1 68 146 70 7
+Reading a token
+Next token is token EQUALSIGN_OP ()
+Shifting token EQUALSIGN_OP ()
+Entering state 71
+Stack now 0 1 68 146 70 7 71
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 7 71 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+-> $$ = nterm constant ()
+Entering state 42
+Stack now 0 1 68 146 70 7 71 42
+Reducing stack by rule 8 (line 165):
+   $1 = nterm constant ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 7 71 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 7 71 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 7 71 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 7 71 47
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 7 71 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 7 71 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 7 71 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 7 71 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 7 71 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 7 71 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 7 71 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 7 71 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 7 71 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 7 71 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 149
+Stack now 0 1 68 146 70 7 71 149
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 206
+Stack now 0 1 68 146 70 7 71 149 206
+Reducing stack by rule 114 (line 868):
+   $1 = token IDENT ()
+   $2 = token EQUALSIGN_OP ()
+   $3 = nterm expression ()
+   $4 = token SEMICOLON_OP ()
+-> $$ = nterm statement ()
+Entering state 148
+Stack now 0 1 68 146 70 148
+Reducing stack by rule 132 (line 1058):
+   $1 = nterm scope ()
+   $2 = nterm statement ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70
+Reading a token
+Next token is token LONG_OP ()
+Shifting token LONG_OP ()
+Entering state 26
+Stack now 0 1 68 146 70 26
+Reducing stack by rule 81 (line 748):
+   $1 = token LONG_OP ()
+-> $$ = nterm base_type ()
+Entering state 63
+Stack now 0 1 68 146 70 63
+Reading a token
+Next token is token IDENT ()
+Reducing stack by rule 92 (line 763):
+   $1 = nterm base_type ()
+-> $$ = nterm base_type_postfix ()
+Entering state 64
+Stack now 0 1 68 146 70 64
+Next token is token IDENT ()
+Reducing stack by rule 103 (line 825):
+   $1 = nterm base_type_postfix ()
+-> $$ = nterm type_name ()
+Entering state 68
+Stack now 0 1 68 146 70 68
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 146
+Stack now 0 1 68 146 70 68 146
+Reading a token
+Next token is token EQUALSIGN_OP ()
+Shifting token EQUALSIGN_OP ()
+Entering state 203
+Stack now 0 1 68 146 70 68 146 203
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 68 146 203 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+-> $$ = nterm constant ()
+Entering state 42
+Stack now 0 1 68 146 70 68 146 203 42
+Reducing stack by rule 8 (line 165):
+   $1 = nterm constant ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 68 146 203 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 68 146 203 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 68 146 203 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 68 146 203 47
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 68 146 203 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 68 146 203 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 68 146 203 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 68 146 203 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 68 146 203 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 68 146 203 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 68 146 203 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 68 146 203 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 68 146 203 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 68 146 203 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 225
+Stack now 0 1 68 146 70 68 146 203 225
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 236
+Stack now 0 1 68 146 70 68 146 203 225 236
+Reducing stack by rule 72 (line 688):
+   $1 = nterm type_name ()
+   $2 = token IDENT ()
+   $3 = token EQUALSIGN_OP ()
+   $4 = nterm expression ()
+   $5 = token SEMICOLON_OP ()
+-> $$ = nterm variable_declaration ()
+Entering state 59
+Stack now 0 1 68 146 70 59
+Reducing stack by rule 74 (line 733):
+   $1 = nterm variable_declaration ()
+-> $$ = nterm declaration ()
+Entering state 61
+Stack now 0 1 68 146 70 61
+Reducing stack by rule 112 (line 864):
+   $1 = nterm declaration ()
+-> $$ = nterm statement ()
+Entering state 148
+Stack now 0 1 68 146 70 148
+Reducing stack by rule 132 (line 1058):
+   $1 = nterm scope ()
+   $2 = nterm statement ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70
+Reading a token
+Next token is token OPENSQUARE_OP ()
+Shifting token OPENSQUARE_OP ()
+Entering state 16
+Stack now 0 1 68 146 70 16
+Reading a token
+Next token is token WORD_OP ()
+Shifting token WORD_OP ()
+Entering state 25
+Stack now 0 1 68 146 70 16 25
+Reducing stack by rule 80 (line 747):
+   $1 = token WORD_OP ()
+-> $$ = nterm base_type ()
+Entering state 63
+Stack now 0 1 68 146 70 16 63
+Reading a token
+Next token is token OPENCHEV_OP ()
+Shifting token OPENCHEV_OP ()
+Entering state 139
+Stack now 0 1 68 146 70 16 63 139
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 16 63 139 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+-> $$ = nterm constant ()
+Entering state 197
+Stack now 0 1 68 146 70 16 63 139 197
+Reading a token
+Next token is token CLOSECHEV_OP ()
+Shifting token CLOSECHEV_OP ()
+Entering state 221
+Stack now 0 1 68 146 70 16 63 139 197 221
+Reducing stack by rule 93 (line 765):
+   $1 = nterm base_type ()
+   $2 = token OPENCHEV_OP ()
+   $3 = nterm constant ()
+   $4 = token CLOSECHEV_OP ()
+-> $$ = nterm base_type_postfix ()
+Entering state 82
+Stack now 0 1 68 146 70 16 82
+Reading a token
+Next token is token CLOSESQUARE_OP ()
+Shifting token CLOSESQUARE_OP ()
+Entering state 153
+Stack now 0 1 68 146 70 16 82 153
+Reducing stack by rule 94 (line 783):
+   $1 = token OPENSQUARE_OP ()
+   $2 = nterm base_type_postfix ()
+   $3 = token CLOSESQUARE_OP ()
+-> $$ = nterm pointer_modifier ()
+Entering state 65
+Stack now 0 1 68 146 70 65
+Reading a token
+Next token is token IDENT ()
+Reducing stack by rule 105 (line 827):
+   $1 = nterm pointer_modifier ()
+-> $$ = nterm type_name ()
+Entering state 68
+Stack now 0 1 68 146 70 68
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 146
+Stack now 0 1 68 146 70 68 146
+Reading a token
+Next token is token EQUALSIGN_OP ()
+Shifting token EQUALSIGN_OP ()
+Entering state 203
+Stack now 0 1 68 146 70 68 146 203
+Reading a token
+Next token is token BACKSLASH_OP ()
+Shifting token BACKSLASH_OP ()
+Entering state 41
+Stack now 0 1 68 146 70 68 146 203 41
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 102
+Stack now 0 1 68 146 70 68 146 203 41 102
+Reducing stack by rule 15 (line 196):
+   $1 = token BACKSLASH_OP ()
+   $2 = token DECIMAL ()
+-> $$ = nterm initializer_list ()
+Entering state 44
+Stack now 0 1 68 146 70 68 146 203 44
+Reading a token
+Next token is token COMMA_OP ()
+Shifting token COMMA_OP ()
+Entering state 107
+Stack now 0 1 68 146 70 68 146 203 44 107
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 167
+Stack now 0 1 68 146 70 68 146 203 44 107 167
+Reducing stack by rule 19 (line 201):
+   $1 = nterm initializer_list ()
+   $2 = token COMMA_OP ()
+   $3 = token DECIMAL ()
+-> $$ = nterm initializer_list ()
+Entering state 44
+Stack now 0 1 68 146 70 68 146 203 44
+Reading a token
+Next token is token COMMA_OP ()
+Shifting token COMMA_OP ()
+Entering state 107
+Stack now 0 1 68 146 70 68 146 203 44 107
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 167
+Stack now 0 1 68 146 70 68 146 203 44 107 167
+Reducing stack by rule 19 (line 201):
+   $1 = nterm initializer_list ()
+   $2 = token COMMA_OP ()
+   $3 = token DECIMAL ()
+-> $$ = nterm initializer_list ()
+Entering state 44
+Stack now 0 1 68 146 70 68 146 203 44
+Reading a token
+Next token is token COMMA_OP ()
+Shifting token COMMA_OP ()
+Entering state 107
+Stack now 0 1 68 146 70 68 146 203 44 107
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 167
+Stack now 0 1 68 146 70 68 146 203 44 107 167
+Reducing stack by rule 19 (line 201):
+   $1 = nterm initializer_list ()
+   $2 = token COMMA_OP ()
+   $3 = token DECIMAL ()
+-> $$ = nterm initializer_list ()
+Entering state 44
+Stack now 0 1 68 146 70 68 146 203 44
+Reading a token
+Next token is token BACKSLASH_OP ()
+Shifting token BACKSLASH_OP ()
+Entering state 106
+Stack now 0 1 68 146 70 68 146 203 44 106
+Reducing stack by rule 10 (line 167):
+   $1 = nterm initializer_list ()
+   $2 = token BACKSLASH_OP ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 68 146 203 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 68 146 203 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 68 146 203 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 68 146 203 47
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 68 146 203 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 68 146 203 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 68 146 203 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 68 146 203 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 68 146 203 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 68 146 203 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 68 146 203 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 68 146 203 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 68 146 203 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 68 146 203 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 225
+Stack now 0 1 68 146 70 68 146 203 225
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 236
+Stack now 0 1 68 146 70 68 146 203 225 236
+Reducing stack by rule 72 (line 688):
+   $1 = nterm type_name ()
+   $2 = token IDENT ()
+   $3 = token EQUALSIGN_OP ()
+   $4 = nterm expression ()
+   $5 = token SEMICOLON_OP ()
+-> $$ = nterm variable_declaration ()
+Entering state 59
+Stack now 0 1 68 146 70 59
+Reducing stack by rule 74 (line 733):
+   $1 = nterm variable_declaration ()
+-> $$ = nterm declaration ()
+Entering state 61
+Stack now 0 1 68 146 70 61
+Reducing stack by rule 112 (line 864):
+   $1 = nterm declaration ()
+-> $$ = nterm statement ()
+Entering state 148
+Stack now 0 1 68 146 70 148
+Reducing stack by rule 132 (line 1058):
+   $1 = nterm scope ()
+   $2 = nterm statement ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70
+Reading a token
+Next token is token FOR_OP ()
+Shifting token FOR_OP ()
+Entering state 33
+Stack now 0 1 68 146 70 33
+Reading a token
+Next token is token OPENPAR_OP ()
+Shifting token OPENPAR_OP ()
+Entering state 89
+Stack now 0 1 68 146 70 33 89
+Reducing stack by rule 109 (line 858):
+   $1 = token OPENPAR_OP ()
+-> $$ = nterm openScopeHelper ()
+Entering state 93
+Stack now 0 1 68 146 70 33 93
+Reading a token
+Next token is token LONG_OP ()
+Shifting token LONG_OP ()
+Entering state 26
+Stack now 0 1 68 146 70 33 93 26
+Reducing stack by rule 81 (line 748):
+   $1 = token LONG_OP ()
+-> $$ = nterm base_type ()
+Entering state 63
+Stack now 0 1 68 146 70 33 93 63
+Reading a token
+Next token is token IDENT ()
+Reducing stack by rule 92 (line 763):
+   $1 = nterm base_type ()
+-> $$ = nterm base_type_postfix ()
+Entering state 64
+Stack now 0 1 68 146 70 33 93 64
+Next token is token IDENT ()
+Reducing stack by rule 103 (line 825):
+   $1 = nterm base_type_postfix ()
+-> $$ = nterm type_name ()
+Entering state 68
+Stack now 0 1 68 146 70 33 93 68
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 146
+Stack now 0 1 68 146 70 33 93 68 146
+Reading a token
+Next token is token EQUALSIGN_OP ()
+Shifting token EQUALSIGN_OP ()
+Entering state 203
+Stack now 0 1 68 146 70 33 93 68 146 203
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 33 93 68 146 203 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+-> $$ = nterm constant ()
+Entering state 42
+Stack now 0 1 68 146 70 33 93 68 146 203 42
+Reducing stack by rule 8 (line 165):
+   $1 = nterm constant ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 68 146 203 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 68 146 203 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 68 146 203 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 33 93 68 146 203 47
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 68 146 203 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 33 93 68 146 203 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 33 93 68 146 203 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 33 93 68 146 203 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 33 93 68 146 203 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 33 93 68 146 203 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 33 93 68 146 203 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 33 93 68 146 203 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 33 93 68 146 203 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 33 93 68 146 203 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 225
+Stack now 0 1 68 146 70 33 93 68 146 203 225
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 236
+Stack now 0 1 68 146 70 33 93 68 146 203 225 236
+Reducing stack by rule 72 (line 688):
+   $1 = nterm type_name ()
+   $2 = token IDENT ()
+   $3 = token EQUALSIGN_OP ()
+   $4 = nterm expression ()
+   $5 = token SEMICOLON_OP ()
+-> $$ = nterm variable_declaration ()
+Entering state 59
+Stack now 0 1 68 146 70 33 93 59
+Reducing stack by rule 74 (line 733):
+   $1 = nterm variable_declaration ()
+-> $$ = nterm declaration ()
+Entering state 61
+Stack now 0 1 68 146 70 33 93 61
+Reducing stack by rule 112 (line 864):
+   $1 = nterm declaration ()
+-> $$ = nterm statement ()
+Entering state 161
+Stack now 0 1 68 146 70 33 93 161
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 73
+Stack now 0 1 68 146 70 33 93 161 73
+Reducing stack by rule 7 (line 164):
+   $1 = token IDENT ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 161 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 161 45
+Reading a token
+Next token is token OPENCHEV_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 161 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 33 93 161 47
+Next token is token OPENCHEV_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 161 48
+Next token is token OPENCHEV_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 33 93 161 49
+Next token is token OPENCHEV_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 33 93 161 50
+Next token is token OPENCHEV_OP ()
+Shifting token OPENCHEV_OP ()
+Entering state 121
+Stack now 0 1 68 146 70 33 93 161 50 121
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 33 93 161 50 121 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+-> $$ = nterm constant ()
+Entering state 42
+Stack now 0 1 68 146 70 33 93 161 50 121 42
+Reducing stack by rule 8 (line 165):
+   $1 = nterm constant ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 161 50 121 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 161 50 121 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 161 50 121 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 33 93 161 50 121 47
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 161 50 121 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 187
+Stack now 0 1 68 146 70 33 93 161 50 121 187
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 51 (line 495):
+   $1 = nterm relation_operation ()
+   $2 = token OPENCHEV_OP ()
+   $3 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 33 93 161 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 33 93 161 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 33 93 161 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 33 93 161 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 33 93 161 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 33 93 161 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 33 93 161 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 33 93 161 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 214
+Stack now 0 1 68 146 70 33 93 161 214
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 231
+Stack now 0 1 68 146 70 33 93 161 214 231
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 7
+Stack now 0 1 68 146 70 33 93 161 214 231 7
+Reading a token
+Next token is token EQUALSIGN_OP ()
+Shifting token EQUALSIGN_OP ()
+Entering state 71
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 73
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 73
+Reducing stack by rule 7 (line 164):
+   $1 = token IDENT ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 45
+Reading a token
+Next token is token PLUS_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 47
+Next token is token PLUS_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48
+Next token is token PLUS_OP ()
+Shifting token PLUS_OP ()
+Entering state 115
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+-> $$ = nterm constant ()
+Entering state 42
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115 42
+Reducing stack by rule 8 (line 165):
+   $1 = nterm constant ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 181
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48 115 181
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 45 (line 439):
+   $1 = nterm addsub_operation ()
+   $2 = token PLUS_OP ()
+   $3 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 149
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 149
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 206
+Stack now 0 1 68 146 70 33 93 161 214 231 7 71 149 206
+Reducing stack by rule 114 (line 868):
+   $1 = token IDENT ()
+   $2 = token EQUALSIGN_OP ()
+   $3 = nterm expression ()
+   $4 = token SEMICOLON_OP ()
+-> $$ = nterm statement ()
+Entering state 241
+Stack now 0 1 68 146 70 33 93 161 214 231 241
+Reading a token
+Next token is token CLOSEPAR_OP ()
+Shifting token CLOSEPAR_OP ()
+Entering state 246
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246
+Reading a token
+Next token is token OPENSEMI_OP ()
+Shifting token OPENSEMI_OP ()
+Entering state 18
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 18
+Reducing stack by rule 131 (line 1049):
+   $1 = token OPENSEMI_OP ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 7
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7
+Reading a token
+Next token is token EQUALSIGN_OP ()
+Shifting token EQUALSIGN_OP ()
+Entering state 71
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 73
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 73
+Reducing stack by rule 7 (line 164):
+   $1 = token IDENT ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 45
+Reading a token
+Next token is token PLUS_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 47
+Next token is token PLUS_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48
+Next token is token PLUS_OP ()
+Shifting token PLUS_OP ()
+Entering state 115
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115
+Reading a token
+Next token is token DECIMAL ()
+Shifting token DECIMAL ()
+Entering state 3
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115 3
+Reducing stack by rule 3 (line 155):
+   $1 = token DECIMAL ()
+register Symbol
+OpenedScope
+registerNode
+3
+create Immediate
+register Symbol
+registerNode
+3
+register Symbol
+registerNode
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+3
+appending child
+children : 0
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+appending child
+children : 1
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+appending child
+children : 2
+OpenedScope
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+OpenedScope
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+create Immediate
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+comp-> $$ = nterm constant ()
+Entering state 42
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115 42
+Reducing stack by rule 8 (line 165):
+   $1 = nterm constant ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 181
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48 115 181
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 45 (line 439):
+   $1 = nterm addsub_operation ()
+   $2 = token PLUS_OP ()
+   $3 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 149
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 149
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 206
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 7 71 149 206
+Reducing stack by rule 114 (line 868):
+   $1 = token IDENT ()
+   $2 = token EQUALSIGN_OP ()
+   $3 = nterm expression ()
+   $4 = token SEMICOLON_OP ()
+-> $$ = nterm statement ()
+Entering state 148
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 148
+Reducing stack by rule 132 (line 1058):
+   $1 = nterm scope ()
+   $2 = nterm statement ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70
+Reading a token
+Next token is token CLOSESEMI_OP ()
+Shifting token CLOSESEMI_OP ()
+Entering state 147
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 70 147
+Reducing stack by rule 113 (line 865):
+   $1 = nterm scope ()
+   $2 = token CLOSESEMI_OP ()
+-> $$ = nterm statement ()
+Entering state 247
+Stack now 0 1 68 146 70 33 93 161 214 231 241 246 247
+Reducing stack by rule 130 (line 1031):
+   $1 = token FOR_OP ()
+   $2 = nterm openScopeHelper ()
+   $3 = nterm statement ()
+   $4 = nterm expression ()
+   $5 = token SEMICOLON_OP ()
+   $6 = nterm statement ()
+   $7 = token CLOSEPAR_OP ()
+   $8 = nterm statement ()
+-> $$ = nterm statement ()
+Entering state 148
+Stack now 0 1 68 146 70 148
+Reducing stack by rule 132 (line 1058):
+   $1 = nterm scope ()
+   $2 = nterm statement ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70
+Reading a token
+Next token is token RETURN_OP ()
+Shifting token RETURN_OP ()
+Entering state 39
+Stack now 0 1 68 146 70 39
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 73
+Stack now 0 1 68 146 70 39 73
+Reducing stack by rule 7 (line 164):
+   $1 = token IDENT ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 39 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 39 45
+Reading a token
+Next token is token PLUS_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 39 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 47
+Stack now 0 1 68 146 70 39 47
+Next token is token PLUS_OP ()
+Reducing stack by rule 44 (line 437):
+   $1 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 39 48
+Next token is token PLUS_OP ()
+Shifting token PLUS_OP ()
+Entering state 115
+Stack now 0 1 68 146 70 39 48 115
+Reading a token
+Next token is token IDENT ()
+Shifting token IDENT ()
+Entering state 73
+Stack now 0 1 68 146 70 39 48 115 73
+Reducing stack by rule 7 (line 164):
+   $1 = token IDENT ()
+-> $$ = nterm initial_expression ()
+Entering state 43
+Stack now 0 1 68 146 70 39 48 115 43
+Reducing stack by rule 23 (line 235):
+   $1 = nterm initial_expression ()
+-> $$ = nterm postfix_operation ()
+Entering state 45
+Stack now 0 1 68 146 70 39 48 115 45
+Reading a token
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 32 (line 327):
+   $1 = nterm postfix_operation ()
+-> $$ = nterm prefix_operation ()
+Entering state 46
+Stack now 0 1 68 146 70 39 48 115 46
+Reducing stack by rule 40 (line 399):
+   $1 = nterm prefix_operation ()
+-> $$ = nterm multdiv_operation ()
+Entering state 181
+Stack now 0 1 68 146 70 39 48 115 181
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 45 (line 439):
+   $1 = nterm addsub_operation ()
+   $2 = token PLUS_OP ()
+   $3 = nterm multdiv_operation ()
+-> $$ = nterm addsub_operation ()
+Entering state 48
+Stack now 0 1 68 146 70 39 48
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 47 (line 465):
+   $1 = nterm addsub_operation ()
+-> $$ = nterm shift_operation ()
+Entering state 49
+Stack now 0 1 68 146 70 39 49
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 50 (line 493):
+   $1 = nterm shift_operation ()
+-> $$ = nterm relation_operation ()
+Entering state 50
+Stack now 0 1 68 146 70 39 50
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 55 (line 539):
+   $1 = nterm relation_operation ()
+-> $$ = nterm equality_operation ()
+Entering state 51
+Stack now 0 1 68 146 70 39 51
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 58 (line 565):
+   $1 = nterm equality_operation ()
+-> $$ = nterm bitwise_and_operation ()
+Entering state 52
+Stack now 0 1 68 146 70 39 52
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 60 (line 583):
+   $1 = nterm bitwise_and_operation ()
+-> $$ = nterm bitwise_eor_operation ()
+Entering state 53
+Stack now 0 1 68 146 70 39 53
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 62 (line 600):
+   $1 = nterm bitwise_eor_operation ()
+-> $$ = nterm bitwise_or_operation ()
+Entering state 54
+Stack now 0 1 68 146 70 39 54
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 64 (line 616):
+   $1 = nterm bitwise_or_operation ()
+-> $$ = nterm logical_and_operation ()
+Entering state 55
+Stack now 0 1 68 146 70 39 55
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 66 (line 632):
+   $1 = nterm logical_and_operation ()
+-> $$ = nterm logical_or_operation ()
+Entering state 56
+Stack now 0 1 68 146 70 39 56
+Next token is token SEMICOLON_OP ()
+Reducing stack by rule 68 (line 649):
+   $1 = nterm logical_or_operation ()
+-> $$ = nterm ternary_operation ()
+Entering state 57
+Stack now 0 1 68 146 70 39 57
+Reducing stack by rule 70 (line 666):
+   $1 = nterm ternary_operation ()
+-> $$ = nterm expression ()
+Entering state 100
+Stack now 0 1 68 146 70 39 100
+Next token is token SEMICOLON_OP ()
+Shifting token SEMICOLON_OP ()
+Entering state 165
+Stack now 0 1 68 146 70 39 100 165
+Reducing stack by rule 126 (line 991):
+   $1 = token RETURN_OP ()
+   $2 = nterm expression ()
+   $3 = token SEMICOLON_OP ()
+-> $$ = nterm statement ()
+Entering state 148
+Stack now 0 1 68 146 70 148
+Reducing stack by rule 132 (line 1058):
+   $1 = nterm scope ()
+   $2 = nterm statement ()
+-> $$ = nterm scope ()
+Entering state 70
+Stack now 0 1 68 146 70
+Reading a token
+Next token is token CLOSESEMI_OP ()
+Shifting token CLOSESEMI_OP ()
+Entering state 147
+Stack now 0 1 68 146 70 147
+Reducing stack by rule 113 (line 865):
+   $1 = nterm scope ()
+   $2 = token CLOSESEMI_OP ()
+-> $$ = nterm statement ()
+Entering state 205
+Stack now 0 1 68 146 205
+Reducing stack by rule 73 (line 713):
+   $1 = nterm type_name ()
+   $2 = token IDENT ()
+   $3 = nterm statement ()
+-> $$ = nterm function_declaration ()
+Entering state 60
+Stack now 0 1 60
+Reducing stack by rule 75 (line 734):
+   $1 = nterm function_declaration ()
+-> $$ = nterm declaration ()
+Entering state 61
+Stack now 0 1 61
+Reducing stack by rule 112 (line 864):
+   $1 = nterm declaration ()
+-> $$ = nterm statement ()
+Entering state 69
+Stack now 0 1 69
+Reducing stack by rule 2 (line 148):
+   $1 = nterm input ()
+   $2 = nterm statement ()
+-> $$ = nterm input ()
+Entering state 1
+Stack now 0 1
+Reading a token
+Now at end of input.
+Shifting token "end of file" ()
+Entering state 2
+Stack now 0 1 2
+Stack now 0 1 2
+Cleanup: popping token "end of file" ()
+Cleanup: popping nterm input ()
+are nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+appending child
+children : 0
+ClosedScope
+ClosedScope
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+appending child
+children : 3
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+appending child
+children : 4
+ClosedScope
+register Symbol
+registerNode
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+compare nodes
+3
+
+
+ok

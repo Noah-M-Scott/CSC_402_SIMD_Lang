@@ -1,0 +1,23 @@
+
+
+long ( long x ) foo {
+    return x + 1;
+}
+
+
+long ( long y ) main {
+
+    y = 7;
+
+    long x = 5;
+
+    [long<4>] z = \4, 3, 2, 1\;
+
+    for(int i = 0; i < 45; i = i + 1;){
+        x = x + 1;
+    }
+
+    x = x + [z][3] + foo(x);
+
+    return x + y;
+}

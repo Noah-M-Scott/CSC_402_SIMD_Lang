@@ -4,6 +4,7 @@
 
 
 %%
+
 [ \r\t]+	 	{ continue; }
 
 [\n]			{ IN_COM = 0; GLOBAL_LINE_NUMBER++; continue; }
@@ -23,6 +24,33 @@
 "/*"		{ IN_COM = 1; continue; }
 "*/"		{ IN_COM = 0; continue; }
 
+
+"?"			{ if(IN_COM) continue; return QUESTION_OP; }
+"~"			{ if(IN_COM) continue; return TILDE_OP; }
+"+"			{ if(IN_COM) continue; return PLUS_OP; }
+"-"			{ if(IN_COM) continue; return DASH_OP; }
+"*"			{ if(IN_COM) continue; return SPLAT_OP; }
+"/"			{ if(IN_COM) continue; return SLASH_OP; }
+"#"			{ if(IN_COM) continue; return HASH_OP; }
+"!"			{ if(IN_COM) continue; return BANG_OP; }
+":"			{ if(IN_COM) continue; return COLON_OP; }
+"|"			{ if(IN_COM) continue; return BAR_OP; }
+"&"			{ if(IN_COM) continue; return AMPER_OP; }
+"^"			{ if(IN_COM) continue; return CARROT_OP; }
+"["			{ if(IN_COM) continue; return OPENSQUARE_OP; }
+"]"			{ if(IN_COM) continue; return CLOSESQUARE_OP; }
+"<"			{ if(IN_COM) continue; return OPENCHEV_OP; }
+">"			{ if(IN_COM) continue; return CLOSECHEV_OP; }
+"("			{ if(IN_COM) continue; return OPENPAR_OP; }
+")"			{ if(IN_COM) continue; return CLOSEPAR_OP; }
+"{"			{ if(IN_COM) continue; return OPENSEMI_OP; }
+"}"			{ if(IN_COM) continue; return CLOSESEMI_OP; }
+"\\"		{ if(IN_COM) continue; return BACKSLASH_OP; }
+","			{ if(IN_COM) continue; return COMMA_OP; }
+"%"			{ if(IN_COM) continue; return PERCENT_OP; }
+
+";"			{ if(IN_COM) continue; return SEMICOLON_OP; }
+"="			{ if(IN_COM) continue; return EQUALSIGN_OP; }
 
 "+|"		{ if(IN_COM) continue; return ADD_BAR_OP; }
 "-|"		{ if(IN_COM) continue; return SUB_BAR_OP; }
@@ -73,39 +101,11 @@
 
 "\""[.]+"\""		{ if(IN_COM) continue; yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
 
+[a-zA-Z][a-zA-Z0-9_]*	{ if(IN_COM) continue; yylval.IDENT = strdup(yytext); return IDENT; }
 
 
 %%
 
-/*
-[a-zA-Z][a-zA-Z0-9_]*	{ if(IN_COM) continue; 
-			  switch(checkConst(yytext){ 
-				case(0): yylval.IDENT = strdup(yytextdup); 
-				return IDENT; 
-				
-				case(1): yylval.DECIMAL = strdup(yytextdup); 
-				return DECIMAL; 
-
-				case(2): yylval.FLOAT = strdup(yytextdup); 
-				return FLOAT; 
-			  }
-			}
-
-[a-zA-Z_][a-zA-Z0-9_]+	{ if(IN_COM) continue; 
-			  switch(checkConst(yytext){ 
-				case(0): yylval.IDENT = strdup(yytextdup); 
-				return IDENT; 
-				
-				case(1): yylval.DECIMAL = strdup(yytextdup); 
-				return DECIMAL; 
-
-				case(2): yylval.FLOAT = strdup(yytextdup); 
-				return FLOAT; 
-			  }
-			}
-*/
-
-//int yywarp(void) {return 1;}
 
 
 

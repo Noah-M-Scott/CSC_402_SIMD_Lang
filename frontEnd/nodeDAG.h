@@ -61,26 +61,26 @@ enum {
 
 
 enum {
-	NONE_MOD,	//space filler
-	REF_MOD,	//mark at 0 for a reference
-	EXTERN_HINT,
-	GLOBAL_HINT,
-	CONST_HINT,
-	VOID_BASE,
-	BYTE_BASE,
-	WORD_BASE,
-	LONG_BASE,
-	QUAD_BASE,	//also used to mark immediate integer data
-	SINGLE_BASE,
-	DOUBLE_BASE,	//also used to mark immediate floating data
-	DOTDOTDOT_BASE,
-	ARRAY_POSTFIX,
-	POINTER_POSTFIX,
-	FUNCTION_POSTFIX,
-	CLOSE_FUNCTION_POSTFIX,
-	SHARED_MOD,
-	VECTOR_MOD,
-	LABEL_BASE
+	NONE_MOD = 0,	//space filler
+	REF_MOD = 1,	//mark at 0 for a reference
+	EXTERN_HINT = 2,
+	GLOBAL_HINT = 3,
+	CONST_HINT = 4,
+	VOID_BASE = 5,
+	BYTE_BASE = 6,
+	WORD_BASE = 7,
+	LONG_BASE = 8,
+	QUAD_BASE = 9,	//also used to mark immediate integer data
+	SINGLE_BASE = 10,
+	DOUBLE_BASE = 11,	//also used to mark immediate floating data
+	DOTDOTDOT_BASE = 12,
+	ARRAY_POSTFIX = 13,
+	POINTER_POSTFIX = 14,
+	FUNCTION_POSTFIX = 15,
+	CLOSE_FUNCTION_POSTFIX = 16,
+	SHARED_MOD = 17,
+	VECTOR_MOD = 18,
+	LABEL_BASE = 19
 };
 
 
@@ -158,10 +158,12 @@ struct symbolEntry* symbolBasePointer;
 unsigned long dagSize;
 unsigned long dagStart;
 struct genericNode** DAG;
+unsigned long dagIndex;
+
 
 static int globalTypeIndexStack[16];
 static int globalTypePointer = 0;
-
+static int falseScopeBool;
 
 
 //0 = int, 1 = float
@@ -223,7 +225,7 @@ void compareTypes(struct genericNode* a, struct genericNode* b, char *dest){
 		bType = b->modString[--bIndex];
 
 
-	switch(a){							//ensure a is a valid type
+	switch(aType){							//ensure a is a valid type
 		case (BYTE_BASE): break;
 		case (WORD_BASE): break;
 		case (LONG_BASE): break;
@@ -235,7 +237,7 @@ void compareTypes(struct genericNode* a, struct genericNode* b, char *dest){
 		default: goto TYPEERROR;
 	}
 
-	switch(b){							//ensure b is a valid type
+	switch(bType){							//ensure b is a valid type
 		case (BYTE_BASE): break;
 		case (WORD_BASE): break;
 		case (LONG_BASE): break;
@@ -250,40 +252,40 @@ void compareTypes(struct genericNode* a, struct genericNode* b, char *dest){
 
 	//raw compare
 	if( aType == bType ){
-		memcpy(dest, a->modString[i], 32) //carry left forward
+		memcpy(dest, a->modString, 32); //carry left forward
 		return;
 	}
 
 	//pointer compare
 	if( (aType == POINTER_POSTFIX && bType == QUAD_BASE) ){
-		memcpy(dest, a->modString[i], 32) //carry left pointer forward
+		memcpy(dest, a->modString, 32); //carry left pointer forward
 		return;
 	}
 	if( (bType == POINTER_POSTFIX && aType == QUAD_BASE) ){
-		memcpy(dest, b->modString[i], 32) //carry right pointer forward
+		memcpy(dest, b->modString, 32); //carry right pointer forward
 		return;
 	}
 
 	//constant (immediate derived) compare
 	//test a for constant
 	if( a->modString[0] == CONST_HINT )
-	if( (aType =< bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
-		memcpy(dest, b->modString[i], 32)										//carry non immediate forward
+	if( (aType <= bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
+		memcpy(dest, b->modString, 32);										//carry non immediate forward
 		return;
 	}else
-	if( (aType =< bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
-		memcpy(dest, b->modString[i], 32)										//carry non immediate forward
+	if( (aType <= bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
+		memcpy(dest, b->modString, 32);										//carry non immediate forward
 		return;
 	}
 
 	//test b for constant
 	if( b->modString[0] == CONST_HINT )
 	if( (aType >= bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
-		memcpy(dest, a->modString[i], 32)										//carry non immediate forward
+		memcpy(dest, a->modString, 32);										//carry non immediate forward
 		return;
 	}else
 	if( (aType >= bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
-		memcpy(dest, a->modString[i], 32)										//carry non immediate forward
+		memcpy(dest, a->modString, 32);										//carry non immediate forward
 		return;
 	}
 
@@ -294,12 +296,12 @@ VECTORCOMPARE:
 	if( a->modString[aIndex - 0] == b->modString[bIndex - 0] ) 		//compare sizes
 	if( a->modString[aIndex - 1] == b->modString[bIndex - 1] ) 		//compare VECTOR_MOD
 	if( a->modString[aIndex - 2] == b->modString[bIndex - 2] ){		//compare BASE type
-		memcpy(dest, a->modString[i], 32) //carry left forward
+		memcpy(dest, a->modString, 32); //carry left forward
 		return;
 	}
 
 TYPEERROR:
-	fprintf(stderr, "ERR: TYPE MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
+	fprintf(stderr, "ERR: TYPE MISMATCH %d - %d, LINE %ld\n", aType, bType, GLOBAL_LINE_NUMBER);
 	exit(1);
 }
 
@@ -309,6 +311,8 @@ TYPEERROR:
 
 //make sure the argument types match whats expected (allow scalling consts up)
 void checkArgumentTypes(struct genericNode* function, struct genericNode* param){
+
+	//THIS NEEDS TO BE FIXED
 
 	//find i start
 	int constFlag = 0;
@@ -407,20 +411,18 @@ void enforceScalerInts(struct genericNode* in){
 			in->modString[i] == POINTER_POSTFIX || 
 			in->modString[i] == FUNCTION_POSTFIX || 
 			in->modString[i] == SINGLE_BASE || 
-			in->modString[i] == DOUBLE_BASE)
+			in->modString[i] == DOUBLE_BASE){
 			fprintf(stderr, "ERR: TYPE MUST BE SCALER INTEGER, LINE %ld\n", GLOBAL_LINE_NUMBER);
 			exit(1);
+		}
 }
 
 //require vectors
 void requireVecs(struct genericNode* in){
-	for(int i = 31; i > -1; i--){
-		if(in->modString[i] < 0)					//vector length
-		if(in->modString[i - 1] == VECTOR_MOD)		//vector mod
+	for(int i = 0; i < 32; i--){
+		if(in->modString[i] == VECTOR_MOD)		//vector mod
+		if(in->modString[i + 1] < 0)			//vector length		
 			return;
-
-		if(in->modString[i] != NONE_MOD)
-			break;
 	}
 	
 	//error fallthrough
@@ -429,10 +431,10 @@ void requireVecs(struct genericNode* in){
 }
 
 
-//enforce scope nesting is zero
+//enforce scope nesting is zero; because of a weird parsing order, items on the zero scope are marked as 1
 void enforceZeroScope(){
-	if(currentScopeCounter != 0){
-		fprintf(stderr, "ERR: SCOPE MUST BE ZERO, LINE %ld\n", GLOBAL_LINE_NUMBER);
+	if(currentScopeCounter > 0){
+		fprintf(stderr, "ERR: SCOPE MUST BE ZERO WAS %ld, LINE %ld\n", currentScopeCounter, GLOBAL_LINE_NUMBER);
 		exit(1);
 	}
 }
@@ -513,8 +515,8 @@ struct genericNode* undoVector(struct genericNode* in){
 
 
 startShifting:
-	for(int j = 31; j >= i; j--)
-		in->modString[j - 1] = in->modString[j];
+	for(int j = i - 1; j < 30; j++)
+		in->modString[j] = in->modString[j + 2];
 
 	in->modString[30] = NONE_MOD;
 	in->modString[31] = NONE_MOD;
@@ -552,9 +554,10 @@ struct genericNode* fetchFunc(struct genericNode* in){
 //undo leftmost pointer and array mods
 struct genericNode* fetchMod(struct genericNode* in){
 	
-	for(int i = 31; i > -1; i--){
+	for(int i = 31; i >= 0; i--){
 		if(in->modString[i] == POINTER_POSTFIX){
 			in->modString[i] = NONE_MOD;
+
 			return in;
 		}
 
@@ -583,6 +586,9 @@ struct symbolEntry* createRef(char* inName){
 
 // 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral, 5 = label, 6 = dataStringLiteral
 struct symbolEntry* createImmediate(char* inValue, int type){
+
+	printf("create Immediate\n");
+
 	static long stringLitCounter = 0;
 
 	struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
@@ -594,7 +600,6 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 
 	if(type < 3){
 		strcpy(temp->constValue, inValue);
-		free(inValue);
 
 		long inputVal;
 		
@@ -606,12 +611,14 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 		
 		if(type == 2)
 			exit(1); //todo: add binary support
-		
+
+
+		free(inValue);
 
 		//ugly as sin way of doing this
 		if( inputVal < 128 && inputVal > -129)
 			(temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
-
+		
 		else if( inputVal < 256 && inputVal > -1)
 			(temp->modString[0] = CONST_HINT, temp->modString[1] = BYTE_BASE);
 
@@ -629,7 +636,7 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 		
 		else
 			(temp->modString[0] = CONST_HINT, temp->modString[1] = QUAD_BASE);
-	
+
 	}else if (type == 3){
 		strcpy(temp->constValue, inValue);
 		free(inValue);
@@ -656,6 +663,19 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 
 		temp->innerScope = (struct genericNode*)inValue;
 	
+	}else if (type == 6){
+		temp->stringLitBool = 1;
+		temp->modString[0] = CONST_HINT;
+		temp->modString[1] = QUAD_BASE;
+		temp->modString[2] = POINTER_POSTFIX;
+		
+		sprintf( &(temp->constValue)[3], "%ld", stringLitCounter++);
+		
+		temp->constValue[0] = 'l';
+		temp->constValue[1] = 'i';
+		temp->constValue[2] = 't';
+
+		temp->innerScope = (struct genericNode*)inValue;
 	}else{
 		//create label immediate
 		strcpy( &(temp->name)[1], inValue );
@@ -702,27 +722,44 @@ void initNodes(){
 	poisonRefBool = 0;
 	symbolStackPointer = NULL;
 	symbolBasePointer = NULL;
+	falseScopeBool = 0;
 	dagSize = 0;
 	dagStart = 0;
+	dagIndex = 0;
+	GLOBAL_LINE_NUMBER = 1;
+
+	symbolStackPointer = malloc(sizeof(struct symbolEntry));
+	
+	symbolStackPointer->timestamp = 0;
+	memset(symbolStackPointer->modString, NONE_MOD, 32);
+	memset(symbolStackPointer->constValue, 0, 32);
+	strcpy(symbolStackPointer->name, "0baseOfStack");
+	symbolStackPointer->baseStore = NULL;
+	symbolStackPointer->next = NULL;
+	symbolStackPointer->innerScope = NULL;
+	symbolStackPointer->stringLitBool = 0;	
+
 	
 	DAG = malloc(512 * sizeof(struct genericNode*));
 	
-	for(; dagSize < 512; dagSize++)
-		DAG[dagSize] = NULL;
+	for(int i = 0; i < 512; i++)
+		DAG[i] = NULL;
 
-	dagSize++;
+	dagSize = 512;
 }
 
 
-// take in an unregistered symbol, register it, produce a unregistered node; delay errs on functions
-// treat labels differently
+// take in an unregistered symbol, register it, produce a unregistered node; delay errs on goto labels
 struct genericNode* registerSymbol(struct symbolEntry* in){
+
+	printf("register Symbol\n");
 
 	//see if it's an immediate
 	long immediateCheck = 0;
 	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but it's the internal way of marking immediates
 		immediateCheck = 1;
 
+	printf("finish immediate check\n");
 
 	//see if it exists
 	struct symbolEntry* current = symbolStackPointer;
@@ -762,15 +799,32 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 		current = current->next;
 	}
 
+	printf("before BADCONST\n");
+
 BADCONST:;
 
+	printf("after BADCONST\n");
+
 	//see if it's an invalid reference
-	if(in->modString[0] == REF_MOD){ //it's a reference...
+	if(in->modString[0] == REF_MOD && in->modString[0] == LABEL_BASE){ //it's a label reference, mark it as in progress
+		//otherwise register it, and make a node for it
+		in->next = symbolStackPointer;
+		symbolStackPointer = in;
+
+		struct genericNode* temp = malloc( sizeof(struct genericNode) + sizeof(struct genericNode*) ); //create a pointer to it
+		temp->childCount = 1;
+		temp->type = SYMBOL_TYPE;
+		temp->children[0] = (struct genericNode*)in;
+	
+		memcpy(temp->modString, current->modString, 32); //copy the modString upwards
+	
+		return temp;
+	}else if(in->modString[0] == REF_MOD){ //it's a reference...
 		printf("ERR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
 		exit(1);
 	}
 
-SKIPCHECKING:;
+	printf("after REF\n");
 
 	//otherwise register it, and make a node for it
 	in->next = symbolStackPointer;
@@ -781,8 +835,8 @@ SKIPCHECKING:;
 	temp->type = SYMBOL_TYPE;
 	temp->children[0] = (struct genericNode*)in;
 	
-	memcpy(temp->modString, current->modString, 32); //copy the modString upwards
-	
+	memcpy(temp->modString, in->modString, 32); //copy the modString upwards
+
 	return temp;
 }
 
@@ -791,16 +845,18 @@ void openScope(){
 	symbolStackPointer->baseStore = symbolBasePointer;
 	symbolBasePointer = symbolStackPointer;
 	currentScopeCounter++;
+	printf("OpenedScope\n");
 }
 
 void closeScope(){
 	currentScopeCounter--;
 	symbolStackPointer = symbolBasePointer;
 	symbolBasePointer = symbolStackPointer->baseStore;
+	printf("ClosedScope\n");
 }
 
 
-static int falseScopeBool = 0;
+
 
 //opens a false scope to include function parameters, won't double up for things like functions that return functions
 void openFalseScope(){
@@ -833,7 +889,9 @@ void closeFalseScope(){
 //so we don't need to recursively compare(?)
 
 static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode* b){
-	
+
+	printf("compare nodes\n");
+
 	if(a->childCount == b->childCount)
 		if(memcmp(a, b, a->childCount * sizeof(struct genericNode*) + sizeof(struct genericNode)) == 0){  //they're the same
 			for(int i = 0; i < b->childCount; i++) //check the children's timestamps
@@ -860,17 +918,22 @@ void clobberStores(){
 	return;
 }
 
+
+
+void endFunction(){
+	dagStart = dagIndex;
+}
+
+
 //mode = 1 -> don't allow dangling function types; mode = 0 -> allow dangling function types
 struct genericNode* registerNodeOperator(struct genericNode* in, int mode){
-	static unsigned long dagIndex = 0;
+
+	printf("registerNode\n");
 
 	in->timestamp = globalTimestamp++;
 
-	for(int i = 31; i > 0; i--)
-		if(in->modString[i] != NONE_MOD){
-			if(in->modString[i - 1] == SHARED_MOD)
-				goto SHAREDSKIP;		//check to see if the most recent marker is shared
-			
+	for(int i = 31; i >= 0; i--)
+		if(in->modString[i] != NONE_MOD){			
 			if(in->modString[i] == CLOSE_FUNCTION_POSTFIX) //check to see if we have a dangling function
 				if(mode){
 					printf("ERR: DANGLING FUNCTION TYPE, LINE %ld\n", GLOBAL_LINE_NUMBER); //...to something that doesn't exist
@@ -881,19 +944,21 @@ struct genericNode* registerNodeOperator(struct genericNode* in, int mode){
 			break;
 
 
-	struct genericNode* temp = NULL;
-	for(int i = dagIndex; i > -1; i--) //very important we try the newest first
+	for(int i = dagIndex; i > dagStart; i--) //very important we try the newest first
 		if(DAG[i] != NULL){
+
+			struct genericNode* temp = NULL;
 			long tempStamp = in->timestamp; //temporarly clobber timestamp
 			in->timestamp = DAG[i]->timestamp;
-						   
-			if( (temp = nodeCompare(in, DAG[i])) != NULL ) //test for a match
-				return (free(in), temp); //found a match
+
+			if( (temp = nodeCompare(in, DAG[i])) != NULL ){ //test for a match
+				free(in);
+				return temp; //found a match
+			}
 		
 			in->timestamp = tempStamp; //restore the timestamp
 		}
-	
-SHAREDSKIP:;
+
 
 	//either couldn't find a match, register it as new; or the node is shared and needs to be redone
 	int newSize = 0;
@@ -908,7 +973,9 @@ SHAREDSKIP:;
 		
 		dagSize++;
 	}
-	
+
+	printf("3\n");
+
 	return in;
 }
 
@@ -929,9 +996,27 @@ struct genericNode* registerNodeFunction(struct genericNode* in){
 //we have to go through and update all instances of it's old pointer
 struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
 
-	p->childCount++;
+	printf("appending child\n");
 
-	struct genericNode* newHome = realloc(p, sizeof(struct genericNode*) + sizeof(struct genericNode*) * p->childCount);
+	printf("children : %ld\n", p->childCount);
+
+	if(p->childCount > 40000){
+		printf("ahhhh\n");
+		exit(1);
+	}
+
+	struct genericNode* newHome = malloc( sizeof(struct genericNode) + (sizeof(struct genericNode*) * (p->childCount + 1)) );
+
+	newHome->timestamp = p->timestamp;
+	memcpy(newHome->modString, p->modString, 32);
+	newHome->type = p->type;
+	newHome->childCount = p->childCount + 1;
+
+	for(int i = 0; i < p->childCount; i++)
+		newHome->children[i] = p->children[i];
+
+
+	newHome->children[p->childCount] = c;		
 
 	for(int i = 0; i < dagSize; i++)
 		if(DAG[i] != NULL){
@@ -944,7 +1029,7 @@ struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
 		}
 
 
-	newHome->children[p->childCount - 1] = c;
+	free(p);
 	return newHome;
 }
 
