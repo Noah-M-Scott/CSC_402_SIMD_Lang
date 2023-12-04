@@ -314,6 +314,11 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 
 	//THIS NEEDS TO BE FIXED
 
+	for(int i = 0; i < 32; i++)
+		printf("%d:", function->modString[i]);
+	printf("\n");
+
+
 	//find i start
 	int constFlag = 0;
 	int i = 31;
@@ -457,6 +462,10 @@ void excludeFunctionsType(char* in){
 
 //using type string, force functions
 void requireFunctionsType(char* in){
+
+	for(int i = 0; i < 43; i++)
+		printf("%d : ", in[i]);
+	printf("\n");
 
 	for(int i = 31; i > -1; i--){
 		if(in[i] == CLOSE_FUNCTION_POSTFIX || (in[i] == POINTER_POSTFIX && in[i - 1] == CLOSE_FUNCTION_POSTFIX)){

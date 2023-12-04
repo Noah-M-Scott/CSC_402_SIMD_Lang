@@ -1,9 +1,5 @@
 
 
-long ( long x ) foo {
-    return x + 1;
-}
-
 
 long ( long y ) main {
 
@@ -17,7 +13,7 @@ long ( long y ) main {
         x = x + 1;
     }
 
-    x = x + [z][3] + foo(x);
+    x = x + [z][3]; 
 
     return x + y;
 }
