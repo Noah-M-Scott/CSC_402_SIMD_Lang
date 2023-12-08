@@ -161,7 +161,7 @@ struct genericNode** DAG;
 unsigned long dagIndex;
 
 
-static int globalTypeIndexStack[16];
+static int globalTypeIndexStack[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 static int globalTypePointer = 0;
 static int falseScopeBool;
 
@@ -179,6 +179,7 @@ void checkDataLitType(int in){
 //we need to save the pointer where we where in the last type string
 void pushTypeIndex(){
 	globalTypeIndexStack[globalTypePointer++] = globalTypeIndex;
+	globalTypeIndex = 0;
 }
 
 
@@ -188,8 +189,8 @@ void copyAndPopTypeIndex(char* dest, char* src){
 
 	int temp = globalTypeIndexStack[--globalTypePointer];
 
-	for(int i = 0; i < globalTypeIndex; i++, temp++)
-		dest[temp] = src[i];
+	for(int i = 0; i <= globalTypeIndex;)
+		dest[++temp] = src[i++];
 	
 	globalTypeIndex = temp;
 }
@@ -307,6 +308,102 @@ TYPEERROR:
 
 
 
+//same as above but does it for a segment of a string
+//used with the argument checking below
+void compareTypeAgainstString(struct genericNode* a, char * b, int bIndex){
+	
+	int aType, bType;
+	int aIndex;
+
+	for(int i = 31; i >= 0; i--)
+	if( a->modString[i] != NONE_MOD ){
+		aType = a->modString[i];		//get a's trailing type	
+		aIndex = i;
+		break;
+	}
+
+	//b's trailing type is provided
+	bType = b[bIndex];
+
+	if(aType < 0) //handle vector length bytes
+		aType = a->modString[--aIndex];
+	
+	if(bType < 0) //handle vector length bytes
+		bType = b[--bIndex];
+
+
+	switch(aType){							//ensure a is a valid type
+		case (BYTE_BASE): break;
+		case (WORD_BASE): break;
+		case (LONG_BASE): break;
+		case (QUAD_BASE): break;
+		case (SINGLE_BASE): break;
+		case (DOUBLE_BASE): break;
+		case (POINTER_POSTFIX): break;
+		case (VECTOR_MOD): goto VECTORCOMPARE;
+		default: goto TYPEERROR;
+	}
+
+	switch(bType){							//ensure b is a valid type
+		case (BYTE_BASE): break;
+		case (WORD_BASE): break;
+		case (LONG_BASE): break;
+		case (QUAD_BASE): break;
+		case (SINGLE_BASE): break;
+		case (DOUBLE_BASE): break;
+		case (POINTER_POSTFIX): break;
+		case (VECTOR_MOD): goto TYPEERROR; //both a and b have to be vectors
+		default: goto TYPEERROR;
+	}
+
+	//raw compare
+	if( aType == bType ){
+		return;
+	}
+
+	//pointer compare
+	if( (aType == POINTER_POSTFIX && bType == QUAD_BASE) ){
+		return;
+	}
+	if( (bType == POINTER_POSTFIX && aType == QUAD_BASE) ){
+		return;
+	}
+
+	//constant (immediate derived) compare
+	//test a for constant
+	if( a->modString[0] == CONST_HINT )
+	if( (aType <= bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
+		return;
+	}else
+	if( (aType <= bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
+		return;
+	}
+
+	//test b for constant
+	if( b[0] == CONST_HINT )
+	if( (aType >= bType) && (aType < SINGLE_BASE) && (bType < SINGLE_BASE) ){	//test to see if you can promote integers
+		return;
+	}else
+	if( (aType >= bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
+		return;
+	}
+
+	goto TYPEERROR; //don't bother with vector checking for scalers
+
+VECTORCOMPARE:
+	//vector compare
+	if( a->modString[aIndex - 0] == b[bIndex - 0] ) 		//compare sizes
+	if( a->modString[aIndex - 1] == b[bIndex - 1] ) 		//compare VECTOR_MOD
+	if( a->modString[aIndex - 2] == b[bIndex - 2] ){		//compare BASE type
+		return;
+	}
+
+TYPEERROR:
+	fprintf(stderr, "ERR: TYPE MISMATCH %d - %d, LINE %ld\n", aType, bType, GLOBAL_LINE_NUMBER);
+	exit(1);
+}
+
+
 
 
 //make sure the argument types match whats expected (allow scalling consts up)
@@ -325,49 +422,26 @@ void checkArgumentTypes(struct genericNode* function, struct genericNode* param)
 	for(; i > -1; i--)
 		if( function->modString[i] == FUNCTION_POSTFIX )
 			break;
+	i--;
 
-	for(int j = 0, w = 0; w < param->childCount; i++){
+	int j = i;
+
+	for(int w = param->childCount - 1; w >= 0; j--, i = j, w--){
 		
-		if(param->children[w]->modString[j] == GLOBAL_HINT || param->children[w]->modString[j] == EXTERN_HINT)
-			j++; //skip the hint section
-
-		if(param->children[w]->modString[j] == CONST_HINT){
-			constFlag = 1; //param is a constant
-			j++;
+		while(1){
+			switch(j){	//find the type base
+				case (BYTE_BASE):   goto BASE_FOUND;
+				case (WORD_BASE):   goto BASE_FOUND;
+				case (LONG_BASE):   goto BASE_FOUND;
+				case (QUAD_BASE):   goto BASE_FOUND;
+				case (SINGLE_BASE): goto BASE_FOUND;
+				case (DOUBLE_BASE): goto BASE_FOUND;
+				default:;
+			}
+			j--;
 		}
-
-		if(param->children[w]->modString[j] == NONE_MOD){
-			j = 0; 
-			constFlag = 0; //reset flag
-			w++; //next child
-		}
-
-		if(param->children[w]->modString[j] == function->modString[i]){
-			j++;
-			continue; //skip the fail fallthrough
-		}
-
-		//integer scale up
-		if(constFlag)
-		if(function->modString[i] < QUAD_BASE && function->modString[i] >= BYTE_BASE)
-		if(param->children[w]->modString[j] < QUAD_BASE && param->children[w]->modString[j] >= BYTE_BASE)
-		if(param->children[w]->modString[j] < function->modString[i]){
-			j++;
-			continue; //skip the fail fallthrough
-		}
-
-		//floating scale up
-		if(constFlag)
-		if(function->modString[i] == DOUBLE_BASE)
-		if(param->children[w]->modString[j] == SINGLE_BASE){
-			j++;
-			continue; //skip the fail fallthrough
-		}
-
-
-		//fail fallthrough
-		fprintf(stderr, "ERR: ARGUMENT MISMATCH, LINE %ld\n", GLOBAL_LINE_NUMBER);
-		exit(1);
+		
+		BASE_FOUND: compareTypeAgainstString(param->children[w], &(function->modString[j]), i - j);
 	}
 }
 
@@ -463,7 +537,7 @@ void excludeFunctionsType(char* in){
 //using type string, force functions
 void requireFunctionsType(char* in){
 
-	for(int i = 0; i < 43; i++)
+	for(int i = 0; i < 32; i++)
 		printf("%d : ", in[i]);
 	printf("\n");
 
@@ -542,6 +616,7 @@ struct genericNode* fetchFunc(struct genericNode* in){
 			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
 				in->modString[i] = NONE_MOD;
 			in->modString[i - 1] = NONE_MOD;
+
 			return in;
 		}
 
@@ -549,6 +624,9 @@ struct genericNode* fetchFunc(struct genericNode* in){
 			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
 				in->modString[i] = NONE_MOD;
 			in->modString[i - 1] = NONE_MOD;
+
+			//it's right here 8:15:8:16:14 -> 0:15:0:0
+
 			return in;
 		}
 

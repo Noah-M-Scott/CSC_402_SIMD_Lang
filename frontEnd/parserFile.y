@@ -714,16 +714,17 @@ variable_declaration:
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function_declaration:
 	  type_name IDENT statement	{
+		requireFunctionsType($1);										//needs to be a pure function
 		closeFalseScope();												//close the false scope created by function mod
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//new symbol
 		memcpy(temp->modString, $1, 32);								//type
-		memcpy(temp->name, $2, 128);									//name
+		free($1);
+		strcpy(temp->name, $2);											//name
 		temp->innerScope = $3;											//has a scope
 		if($3->type != SCOPE_TYPE){
 			fprintf(stderr, "ERR: FUNCTIONS REQUIRE STMT TO BE A SCOPE, LINE %ld\n", GLOBAL_LINE_NUMBER);
 			exit(1);
 		}
-		requireFunctionsType($1);										//needs to be a purefunction
 		$$ = registerNodeFunction(registerSymbol(temp));				//register and return
 		enforceZeroScope();												//on the zeroth scope
 		endFunction();													//end the function DAG list
@@ -745,20 +746,20 @@ hint_modifier:
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 base_type:
-	  VOID_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = VOID_BASE;   $$ = temp; }
-	| BYTE_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = BYTE_BASE;   $$ = temp; }
-	| WORD_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = WORD_BASE;   $$ = temp; }
-	| LONG_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = LONG_BASE;   $$ = temp; }
-	| QUAD_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = QUAD_BASE;   $$ = temp; }
-	| SINGLE_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = SINGLE_BASE; $$ = temp; }
-	| DOUBLE_OP		{ char *temp = malloc(32); globalTypeIndex = 0; temp[globalTypeIndex] = DOUBLE_BASE; $$ = temp; }
-	| hint_modifier VOID_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = VOID_BASE;   $$ = temp; }
-	| hint_modifier BYTE_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = BYTE_BASE;   $$ = temp; }
-	| hint_modifier WORD_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = WORD_BASE;   $$ = temp; }
-	| hint_modifier LONG_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = LONG_BASE;   $$ = temp; }
-	| hint_modifier QUAD_OP		{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = QUAD_BASE;   $$ = temp; }
-	| hint_modifier SINGLE_OP	{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = SINGLE_BASE; $$ = temp; }
-	| hint_modifier DOUBLE_OP	{ char *temp = malloc(32); globalTypeIndex = ($1?1:0); temp[0] = $1; temp[globalTypeIndex] = DOUBLE_BASE; $$ = temp; }
+	  VOID_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = VOID_BASE;   $$ = temp; }
+	| BYTE_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = BYTE_BASE;   $$ = temp; }
+	| WORD_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = WORD_BASE;   $$ = temp; }
+	| LONG_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = LONG_BASE;   $$ = temp; }
+	| QUAD_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = QUAD_BASE;   $$ = temp; }
+	| SINGLE_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = SINGLE_BASE; $$ = temp; }
+	| DOUBLE_OP		{ char *temp = calloc(32, 1); globalTypeIndex = 0; temp[globalTypeIndex] = DOUBLE_BASE; $$ = temp; }
+	| hint_modifier VOID_OP		{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = VOID_BASE;   $$ = temp; }
+	| hint_modifier BYTE_OP		{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = BYTE_BASE;   $$ = temp; }
+	| hint_modifier WORD_OP		{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = WORD_BASE;   $$ = temp; }
+	| hint_modifier LONG_OP		{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = LONG_BASE;   $$ = temp; }
+	| hint_modifier QUAD_OP		{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = QUAD_BASE;   $$ = temp; }
+	| hint_modifier SINGLE_OP	{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = SINGLE_BASE; $$ = temp; }
+	| hint_modifier DOUBLE_OP	{ enforceZeroScope(); char *temp = calloc(32, 1); globalTypeIndex = 1; temp[0] = $1; temp[globalTypeIndex] = DOUBLE_BASE; $$ = temp; }
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -791,7 +792,7 @@ pointer_modifier:
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 function_modbase:
 	  base_type_postfix OPENPAR_OP { openFalseScope(); $1[++globalTypeIndex] = FUNCTION_POSTFIX; $$ = $1; } //mark as function
- 	| pointer_modifier  OPENPAR_OP { openFalseScope(); $1[++globalTypeIndex] = FUNCTION_POSTFIX; $$ = $1; } //we open falsescope here
+ 	| pointer_modifier  OPENPAR_OP { openFalseScope(); $1[++globalTypeIndex] = FUNCTION_POSTFIX; $$ = $1; } //we open a false scope here
 	;
 
 
@@ -841,7 +842,7 @@ parameter_list:
 	  pushTypeIndexR type_name IDENT { 
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 		memcpy(temp->modString, $2, 32);
-		memcpy(temp->name, $3, 128);
+		strcpy(temp->name, $3);
 		registerSymbol(temp);
 		$$ = $2;						// don't pop here as this typename will be merged repeatedly, then merged with the final one
  	}
@@ -849,7 +850,7 @@ parameter_list:
 	| parameter_list COMMA_OP pushTypeIndexR type_name IDENT	{ 
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));
 		memcpy(temp->modString, $4, 32);
-		memcpy(temp->name, $4, 128);
+		strcpy(temp->name, $5);
 		registerSymbol(temp);
 		copyAndPopTypeIndex($1, $4);
 		free($4);
