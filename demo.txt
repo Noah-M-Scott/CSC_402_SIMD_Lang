@@ -3,6 +3,14 @@ long ( long x ) foo {
     return x + 4;
 }
 
+long () bar {
+    return 6;
+}
+
+long (long<4> g) baz {
+    return g[2];
+}
+
 long ( long y ) main {
 
     y = 7;
@@ -10,12 +18,22 @@ long ( long y ) main {
     long x = 5;
 
     [long<4>] z = \4, 3, 2, 1\;
+    long<4> q;
 
     for(int i = 0; i < 45; i = i + 1;){
         x = x + 1;
     }
 
-    x = x + [z][3] + foo(x); 
+    if(x > 0)
+    if(y < 4)
+    if(x > 0 && y > 0)
+        return 3;
+    else
+        return 2;
+
+    q = [z] + [\1, 1, 1, 1\] + q;
+
+    x = x + [z][3] + foo(x) + bar(); 
 
     return x + y;
 }

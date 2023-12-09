@@ -62,7 +62,6 @@
 "!="		{ if(IN_COM) continue; return NOTEQU_OP; }
 "&&"		{ if(IN_COM) continue; return ANDAND_OP; }
 "||"		{ if(IN_COM) continue; return OROR_OP; }
-"..."		{ if(IN_COM) continue; return DOTDOTDOT_OP; }
 "EXTERN"	{ if(IN_COM) continue; return EXTERN_OP; }
 "GLOBAL"	{ if(IN_COM) continue; return GLOBAL_OP; }
 "VOID"		{ if(IN_COM) continue; return VOID_OP; }
@@ -83,9 +82,6 @@
 "FOR"		{ if(IN_COM) continue; return FOR_OP; }
 "BREAK"		{ if(IN_COM) continue; return BREAK_OP; }
 "CONTINUE"	{ if(IN_COM) continue; return CONTINUE_OP; }
-"SWITCH"	{ if(IN_COM) continue; return SWITCH_OP; }
-"CASE"		{ if(IN_COM) continue; return CASE_OP; }
-"DEFAULT"	{ if(IN_COM) continue; return DEFAULT_OP; }
 "RETURN"	{ if(IN_COM) continue; return RETURN_OP; }
 "GOTO"		{ if(IN_COM) continue; return GOTO_OP; }
 "INCLUDE"	{ if(IN_COM) continue; return INCLUDE_OP; }

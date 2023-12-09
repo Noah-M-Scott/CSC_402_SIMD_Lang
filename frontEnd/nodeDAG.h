@@ -5,7 +5,6 @@ enum {
 	SYMBOL_TYPE, 
 	SCOPE_TYPE,
 	INIT_LIST_TYPE,
-	DOTDOTDOT_TYPE,
 	ARGUMENT_LIST_TYPE,
 	PERMUTE_LIST_TYPE,
 	FOR_TYPE,
@@ -13,9 +12,6 @@ enum {
 	LABEL_TYPE,
 	RETURN_TYPE,
 	RETURN_EXP_TYPE,
-	DEFAULT_TYPE,
-	CASE_TYPE,
-	SWITCH_TYPE,
 	CONTINUE_TYPE,
 	BREAK_TYPE,
 	DO_WHILE_TYPE,
@@ -73,7 +69,6 @@ enum {
 	QUAD_BASE = 9,	//also used to mark immediate integer data
 	SINGLE_BASE = 10,
 	DOUBLE_BASE = 11,	//also used to mark immediate floating data
-	DOTDOTDOT_BASE = 12,
 	ARRAY_POSTFIX = 13,
 	POINTER_POSTFIX = 14,
 	FUNCTION_POSTFIX = 15,
@@ -267,6 +262,24 @@ void compareTypes(struct genericNode* a, struct genericNode* b, char *dest){
 		return;
 	}
 
+	goto CONSTANTCOMPARE;
+
+VECTORCOMPARE:
+	if(aType == VECTOR_MOD) //handle vector length bytes
+		aType = a->modString[--aIndex];
+	
+	if(bType == VECTOR_MOD) //handle vector length bytes
+		bType = b->modString[--bIndex];
+
+	//vector compares
+	if( a->modString[aIndex + 2] == b->modString[bIndex + 2] ) 		//compare sizes
+	if( a->modString[aIndex + 1] == b->modString[bIndex + 1] ) 		//compare VECTOR_MOD
+	if( a->modString[aIndex + 0] == b->modString[bIndex + 0] ){		//compare BASE type
+		memcpy(dest, a->modString, 32); //carry left forward
+		return;
+	}
+
+CONSTANTCOMPARE:
 	//constant (immediate derived) compare
 	//test a for constant
 	if( a->modString[0] == CONST_HINT )
@@ -287,17 +300,6 @@ void compareTypes(struct genericNode* a, struct genericNode* b, char *dest){
 	}else
 	if( (aType >= bType) && (aType >= SINGLE_BASE) && (bType >= SINGLE_BASE) ){	//test to see if you can promote floats
 		memcpy(dest, a->modString, 32);										//carry non immediate forward
-		return;
-	}
-
-	goto TYPEERROR; //don't bother with vector checking for scalers
-
-VECTORCOMPARE:
-	//vector compare
-	if( a->modString[aIndex - 0] == b->modString[bIndex - 0] ) 		//compare sizes
-	if( a->modString[aIndex - 1] == b->modString[bIndex - 1] ) 		//compare VECTOR_MOD
-	if( a->modString[aIndex - 2] == b->modString[bIndex - 2] ){		//compare BASE type
-		memcpy(dest, a->modString, 32); //carry left forward
 		return;
 	}
 
@@ -368,7 +370,24 @@ void compareTypeAgainstString(struct genericNode* a, char * b, int bIndex){
 	if( (bType == POINTER_POSTFIX && aType == QUAD_BASE) ){
 		return;
 	}
+	
+	goto CONSTANTCOMPARE;
 
+VECTORCOMPARE:
+	if(aType == VECTOR_MOD) //handle vector length bytes
+		aType = a->modString[--aIndex];
+	
+	if(bType == VECTOR_MOD) //handle vector length bytes
+		bType = b[--bIndex];
+
+	//vector compares
+	if( a->modString[aIndex + 2] == b[bIndex + 2] ) 		//compare sizes
+	if( a->modString[aIndex + 1] == b[bIndex + 1] ) 		//compare VECTOR_MOD
+	if( a->modString[aIndex + 0] == b[bIndex + 0] ){		//compare BASE type
+		return;
+	}
+
+CONSTANTCOMPARE:
 	//constant (immediate derived) compare
 	//test a for constant
 	if( a->modString[0] == CONST_HINT )
@@ -389,14 +408,6 @@ void compareTypeAgainstString(struct genericNode* a, char * b, int bIndex){
 	}
 
 	goto TYPEERROR; //don't bother with vector checking for scalers
-
-VECTORCOMPARE:
-	//vector compare
-	if( a->modString[aIndex - 0] == b[bIndex - 0] ) 		//compare sizes
-	if( a->modString[aIndex - 1] == b[bIndex - 1] ) 		//compare VECTOR_MOD
-	if( a->modString[aIndex - 2] == b[bIndex - 2] ){		//compare BASE type
-		return;
-	}
 
 TYPEERROR:
 	fprintf(stderr, "ERR: TYPE MISMATCH %d - %d, LINE %ld\n", aType, bType, GLOBAL_LINE_NUMBER);
@@ -487,11 +498,20 @@ void enforcePointer(struct genericNode* in){
 void enforceScalerInts(struct genericNode* in){
 	for(int i = 31; i > -1; i--)
 		if(	in->modString[i] == VECTOR_MOD || 
-			in->modString[i] == POINTER_POSTFIX || 
 			in->modString[i] == FUNCTION_POSTFIX || 
 			in->modString[i] == SINGLE_BASE || 
 			in->modString[i] == DOUBLE_BASE){
 			fprintf(stderr, "ERR: TYPE MUST BE SCALER INTEGER, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
+}
+
+//ban vectors
+void enforceScalers(struct genericNode* in){
+	for(int i = 31; i > -1; i--)
+		if(	in->modString[i] == VECTOR_MOD || 
+			in->modString[i] == FUNCTION_POSTFIX ){
+			fprintf(stderr, "ERR: TYPE MUST BE SCALER, LINE %ld\n", GLOBAL_LINE_NUMBER);
 			exit(1);
 		}
 }
@@ -615,7 +635,7 @@ struct genericNode* fetchFunc(struct genericNode* in){
 		if(in->modString[i] == CLOSE_FUNCTION_POSTFIX){
 			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
 				in->modString[i] = NONE_MOD;
-			in->modString[i - 1] = NONE_MOD;
+			in->modString[i] = NONE_MOD;
 
 			return in;
 		}
@@ -623,9 +643,7 @@ struct genericNode* fetchFunc(struct genericNode* in){
 		if(in->modString[i] == POINTER_POSTFIX && in->modString[i - 1] == CLOSE_FUNCTION_POSTFIX){
 			for(; in->modString[i] != FUNCTION_POSTFIX; i--)
 				in->modString[i] = NONE_MOD;
-			in->modString[i - 1] = NONE_MOD;
-
-			//it's right here 8:15:8:16:14 -> 0:15:0:0
+			in->modString[i] = NONE_MOD;
 
 			return in;
 		}
@@ -753,7 +771,7 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 	}else if (type == 6){
 		temp->stringLitBool = 1;
 		temp->modString[0] = CONST_HINT;
-		temp->modString[1] = QUAD_BASE;
+		temp->modString[1] = BYTE_BASE;
 		temp->modString[2] = POINTER_POSTFIX;
 		
 		sprintf( &(temp->constValue)[3], "%ld", stringLitCounter++);
@@ -977,8 +995,6 @@ void closeFalseScope(){
 
 static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode* b){
 
-	printf("compare nodes\n");
-
 	if(a->childCount == b->childCount)
 		if(memcmp(a, b, a->childCount * sizeof(struct genericNode*) + sizeof(struct genericNode)) == 0){  //they're the same
 			for(int i = 0; i < b->childCount; i++) //check the children's timestamps
@@ -994,6 +1010,9 @@ static struct genericNode* nodeCompare(struct genericNode* a, struct genericNode
 	return NULL;
 }
 
+
+//preform this any time we write back to memory
+//gets rid of any cached data
 void clobberStores(){
 	
 	struct symbolEntry* current = symbolStackPointer;
@@ -1006,7 +1025,7 @@ void clobberStores(){
 }
 
 
-
+//ensure we don't link into a function we're not in
 void endFunction(){
 	dagStart = dagIndex;
 }

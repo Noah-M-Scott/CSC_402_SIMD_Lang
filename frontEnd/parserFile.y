@@ -34,7 +34,6 @@ FILE *outFile;
 %token NOTEQU_OP
 %token ANDAND_OP
 %token OROR_OP
-%token DOTDOTDOT_OP
 
 %token PERCENT_OP
 %token EQUALSIGN_OP
@@ -87,9 +86,6 @@ FILE *outFile;
 %token FOR_OP
 %token BREAK_OP
 %token CONTINUE_OP
-%token SWITCH_OP
-%token CASE_OP
-%token DEFAULT_OP
 %token RETURN_OP
 %token GOTO_OP
 
@@ -165,16 +161,6 @@ initial_expression:
 	| constant					{ $$ = $1;                                                   } //passthrough
 	| STRING_LIT				{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); } //string immediate (char*)
 	| initializer_list BACKSLASH_OP		{ $$ = registerNode(registerSymbol(createImmediate($1, 6))); } //like string lit, but of const type
-	
-	| DOTDOTDOT_OP { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode)); 
-		temp->childCount = 0; 
-		temp->type = DOTDOTDOT_TYPE;			// '...' is a void pointer to stack base + offset
-		memset(temp->modString, NONE_MOD, 32);
-		temp->modString[0] = VOID_BASE;
-		temp->modString[1] = POINTER_POSTFIX;	//create a void pointer
-		$$ = registerNode(temp); 
-	}
 
 	| OPENPAR_OP expression CLOSEPAR_OP		{ $$ = $2; }	//pass
 	| AMPER_OP IDENT					{ $$ = registerNode(registerSymbol(createImmediate($2, 5))); } //get data label
@@ -343,15 +329,6 @@ prefix_operation:
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
 		temp->type = LOGICAL_NOT_TYPE;
 		memcpy(temp->modString, $2->modString, 32); //no matter the type, 0 = FALSE; !0 = TRUE
-		temp->childCount = 1;
-		temp->children[0] = $2;
-		$$ = registerNode(temp);
-	}
-	
-	| PLUS_OP prefix_operation { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-		temp->type = ABS_TYPE;
-		memcpy(temp->modString, $2->modString, 32);
 		temp->childCount = 1;
 		temp->children[0] = $2;
 		$$ = registerNode(temp);
@@ -677,10 +654,6 @@ variable_declaration:
 		closeFalseScope(); 												//close the previous false scope from typename
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new symbol
 
-		globalTypeIndex++;
-		for(; globalTypeIndex < 32; globalTypeIndex++)
-			$1[globalTypeIndex] = NONE_MOD;
-
 		memcpy(temp->modString, $1, 32);								//set its type 
 		memcpy(temp->name, $2, 128);									//set its name
 		temp->innerScope = NULL;										//no inner scope (isn't a function)
@@ -688,13 +661,9 @@ variable_declaration:
 		$$ = registerNode(registerSymbol(temp));						//create the symbol, pass back a reference
 	}
 
-	| type_name IDENT EQUALSIGN_OP expression SEMICOLON_OP {
+	| type_name IDENT EQUALSIGN_OP constant SEMICOLON_OP {
 		closeFalseScope(); 												//close the previous false scope from typename
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new symbol
-
-		globalTypeIndex++;
-		for(; globalTypeIndex < 32; globalTypeIndex++)
-			$1[globalTypeIndex] = NONE_MOD;
 
 		memcpy(temp->modString, $1, 32);								//set its type
 		memcpy(temp->name, $2, 128);									//set its name
@@ -808,20 +777,6 @@ function_modifier:
 		$1[++globalTypeIndex] = CLOSE_FUNCTION_POSTFIX; 
 		$$ = $1; 
 	}
-
-	| function_modbase parameter_list COMMA_OP DOTDOTDOT_OP CLOSEPAR_OP { //finished the function, pop the old index, copy the param types
-		copyAndPopTypeIndex($1, $2); 
-		free($2); 
-		$1[++globalTypeIndex] = DOTDOTDOT_BASE; 			//add a marker to mark this function as being "..." suportive
-		$1[++globalTypeIndex] = CLOSE_FUNCTION_POSTFIX; 
-		$$ = $1;
-	}
-
-	| function_modbase DOTDOTDOT_OP CLOSEPAR_OP { //empty function, mark "..." suportive
-		$1[++globalTypeIndex] = DOTDOTDOT_BASE; 
-		$1[++globalTypeIndex] = CLOSE_FUNCTION_POSTFIX; 
-		$$ = $1; 
-	}
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -900,6 +855,7 @@ statement:
 		temp->childCount = 2;
 		temp->children[0] = $3;
 		temp->children[1] = $5;
+		enforceScalers($3);
 		closeScope();
 		$$ = registerNode(temp);
 	}
@@ -912,6 +868,7 @@ statement:
 		temp->children[0] = $3;
 		temp->children[1] = $5;
 		temp->children[2] = $7;
+		enforceScalers($3);
 		closeScope();
 		$$ = registerNode(temp);
 	}
@@ -923,6 +880,7 @@ statement:
 		temp->childCount = 2;
 		temp->children[0] = $3;
 		temp->children[1] = $5;
+		enforceScalers($3);
 		closeScope();
 		$$ = registerNode(temp);
 	}
@@ -934,6 +892,7 @@ statement:
 		temp->childCount = 2;
 		temp->children[0] = $2;
 		temp->children[1] = $5;
+		enforceScalers($5);
 		closeScope();
 		$$ = registerNode(temp);
 	}
@@ -951,36 +910,6 @@ statement:
 		temp->type = CONTINUE_TYPE;
 		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
 		temp->childCount = 0;
-		$$ = registerNode(temp);
-	}
-
-	| SWITCH_OP openScopeHelper expression CLOSEPAR_OP statement { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-		temp->type = SWITCH_TYPE;
-		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
-		temp->childCount = 2;
-		temp->children[0] = $3;
-		temp->children[1] = $5;
-		closeScope();
-		$$ = registerNode(temp);
-	}
-
-	| CASE_OP constant COLON_OP statement { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-		temp->type = CASE_TYPE;
-		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
-		temp->childCount = 2;
-		temp->children[0] = $2;
-		temp->children[1] = $4;
-		$$ = registerNode(temp);
-	}
-
-	| DEFAULT_OP COLON_OP statement {
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 1);
-		temp->type = DEFAULT_TYPE;
-		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
-		temp->childCount = 1;
-		temp->children[0] = $3;
 		$$ = registerNode(temp);
 	}
 
@@ -1041,6 +970,7 @@ statement:
 		temp->children[1] = $4;
 		temp->children[2] = $6;
 		temp->children[3] = $8;
+		enforceScalers($4);
 		closeScope();
 		$$ = registerNode(temp);
 	}
@@ -1080,7 +1010,6 @@ void dagPrint(int in){
 	case(SYMBOL_TYPE):				printf("SYMBOL_TYPE"); break;
 	case(SCOPE_TYPE):				printf("SCOPE_TYPE"); break;
 	case(INIT_LIST_TYPE):			printf("INITLIST_TYPE"); break;
-	case(DOTDOTDOT_TYPE):			printf("..._TYPE"); break;
 	case(ARGUMENT_LIST_TYPE):		printf("ARGUMENTLIST_TYPE"); break;
 	case(PERMUTE_LIST_TYPE):		printf("PERMUTE_TYPE"); break;
 	case(FOR_TYPE):					printf("FOR_TYPE"); break;
@@ -1088,9 +1017,6 @@ void dagPrint(int in){
 	case(LABEL_TYPE):				printf("LABEL_TYPE"); break;
 	case(RETURN_TYPE):				printf("RETURN_TYPE"); break;
 	case(RETURN_EXP_TYPE):			printf("RETURN EXP_TYPE"); break;
-	case(DEFAULT_TYPE):				printf("DEFAULT_TYPE"); break;
-	case(CASE_TYPE):				printf("CASE_TYPE"); break;
-	case(SWITCH_TYPE):				printf("SWITCH_TYPE"); break;
 	case(CONTINUE_TYPE):			printf("COUNTINUE_TYPE"); break;
 	case(BREAK_TYPE):				printf("BREAK_TYPE"); break;
 	case(DO_WHILE_TYPE):			printf("DOWHILE_TYPE"); break;
