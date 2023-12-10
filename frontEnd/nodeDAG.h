@@ -4,7 +4,6 @@
 enum {
 	SYMBOL_TYPE, 
 	SCOPE_TYPE,
-	INIT_LIST_TYPE,
 	ARGUMENT_LIST_TYPE,
 	PERMUTE_LIST_TYPE,
 	FOR_TYPE,
@@ -14,16 +13,13 @@ enum {
 	RETURN_EXP_TYPE,
 	CONTINUE_TYPE,
 	BREAK_TYPE,
-	DO_WHILE_TYPE,
 	WHILE_TYPE,
 	IF_TYPE,
 	IF_ELSE_TYPE,
-	COMMA_TYPE,
 	EQU_TYPE,
 	TERN_TYPE,
 	LOGIC_OR_TYPE,
 	LOGIC_AND_TYPE,
-	MESH_TYPE,
 	OR_TYPE,
 	EOR_TYPE,
 	AND_TYPE,
@@ -40,19 +36,16 @@ enum {
 	MOD_TYPE,
 	DIV_TYPE,
 	MUL_TYPE,
-	PUNN_TYPE,
 	RUN_SUM_TYPE,
 	RUN_DIF_TYPE,
 	DEREF_TYPE,
 	NEG_TYPE,
-	ABS_TYPE,
 	LOGICAL_NOT_TYPE,
 	NOT_TYPE,
 	PERMUTE_TYPE,
 	VEC_INDEX_TYPE,
 	CALL_TYPE,
-	CALL_PARAM_TYPE,
-	INDEX_TYPE
+	CALL_PARAM_TYPE
 };
 
 
@@ -1019,6 +1012,14 @@ void clobberStores(){
 //ensure we don't link into a function we're not in
 void endFunction(){
 	dagStart = dagIndex;
+}
+
+
+//by forcing recomputes on basic block opennings, we simplify compilation
+//also stops attempts to use code we branched over
+void setBasicBlock(){
+	clobberStores();
+	endFunction();
 }
 
 

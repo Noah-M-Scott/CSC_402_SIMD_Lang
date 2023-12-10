@@ -5,7 +5,7 @@ extern void* frontEnd(char *in);
 extern int middleEnd(void* in);
 
 int main(){
-	middleEnd(frontEnd("demo.txt"));
+	backEnd("out.s", frontEnd("demo.txt"));
 
 	return 0;
 }

@@ -140,10 +140,16 @@ FILE *outFile;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 input:
-	  %empty
-	| input statement
-	;
+	  %empty	{ 
+		struct genericNode* temp = malloc(sizeof(struct genericNode));
+		temp->type = SCOPE_TYPE;
+		memset(temp->modString, NONE_MOD, 32); //the big global scope
+		temp->childCount = 0;
+		$$ = registerNode(temp);
+	}
 
+	| input statement	{ $$ = appendAChild($1, $2); } //link statements together in a scope
+	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 // note, instead of sizeof, the preprocessing step has sizeofs and NULL baked in and swaps in a constant
@@ -361,14 +367,6 @@ prefix_operation:
 		$$ = registerNode(temp);
 	}
 
-	| OPENPAR_OP type_name CLOSEPAR_OP prefix_operation { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-		temp->type = PUNN_TYPE;
-		memcpy(temp->modString, $2, 32);
-		temp->childCount = 1;
-		temp->children[0] = $4;
-		$$ = registerNode(temp);	//for both of these, it's fine not to track the type_name; we don't need it
-	}
 	;
 
 
@@ -813,7 +811,7 @@ parameter_list:
 	;
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-openScopeHelper: OPENPAR_OP {openScope(); }  //control flow structer's () are part of their scope
+openScopeHelper: OPENPAR_OP {openScope(); setBasicBlock();}  //control flow structure's () are part of their scope
 	;
 
 statement:
@@ -856,6 +854,7 @@ statement:
 		temp->children[1] = $5;
 		enforceScalers($3);
 		closeScope();
+		setBasicBlock();
 		$$ = registerNode(temp);
 	}
 
@@ -869,6 +868,7 @@ statement:
 		temp->children[2] = $7;
 		enforceScalers($3);
 		closeScope();
+		setBasicBlock();
 		$$ = registerNode(temp);
 	}
 
@@ -881,18 +881,7 @@ statement:
 		temp->children[1] = $5;
 		enforceScalers($3);
 		closeScope();
-		$$ = registerNode(temp);
-	}
-
-	| DO_OP statement WHILE_OP openScopeHelper expression CLOSEPAR_OP SEMICOLON_OP { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
-		temp->type = IF_TYPE;
-		memset(temp->modString, NONE_MOD, 32); //control flow doesn't have a type
-		temp->childCount = 2;
-		temp->children[0] = $2;
-		temp->children[1] = $5;
-		enforceScalers($5);
-		closeScope();
+		setBasicBlock();
 		$$ = registerNode(temp);
 	}
 							
@@ -930,6 +919,7 @@ statement:
 	}
 	
 	| IDENT COLON_OP statement {
+		setBasicBlock();
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new label symbol
 		memset(temp->modString, NONE_MOD, 32);							//set its type..
 		temp->modString[0] = LABEL_BASE;								//..as label
@@ -957,6 +947,7 @@ statement:
 		temp->children[2] = $5;
 		temp->children[3] = $7;
 		closeScope();
+		setBasicBlock();
 		$$ = registerNode(temp);
 	}
 
@@ -971,6 +962,7 @@ statement:
 		temp->children[3] = $8;
 		enforceScalers($4);
 		closeScope();
+		setBasicBlock();
 		$$ = registerNode(temp);
 	}
 
