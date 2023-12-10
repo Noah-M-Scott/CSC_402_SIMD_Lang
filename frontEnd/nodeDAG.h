@@ -420,13 +420,6 @@ TYPEERROR:
 //make sure the argument types match whats expected (allow scalling consts up)
 void checkArgumentTypes(struct genericNode* function, struct genericNode* param){
 
-	//THIS NEEDS TO BE FIXED
-
-	for(int i = 0; i < 32; i++)
-		printf("%d:", function->modString[i]);
-	printf("\n");
-
-
 	//find i start
 	int constFlag = 0;
 	int i = 31;
@@ -556,10 +549,6 @@ void excludeFunctionsType(char* in){
 
 //using type string, force functions
 void requireFunctionsType(char* in){
-
-	for(int i = 0; i < 32; i++)
-		printf("%d : ", in[i]);
-	printf("\n");
 
 	for(int i = 31; i > -1; i--){
 		if(in[i] == CLOSE_FUNCTION_POSTFIX || (in[i] == POINTER_POSTFIX && in[i - 1] == CLOSE_FUNCTION_POSTFIX)){
@@ -691,8 +680,6 @@ struct symbolEntry* createRef(char* inName){
 
 // 0 = decimal, 1 = hex, 2 = binary, 3 = float, 4 = stringLiteral, 5 = label, 6 = dataStringLiteral
 struct symbolEntry* createImmediate(char* inValue, int type){
-
-	printf("create Immediate\n");
 
 	static long stringLitCounter = 0;
 
@@ -854,17 +841,24 @@ void initNodes(){
 }
 
 
+
+
+
 // take in an unregistered symbol, register it, produce a unregistered node; delay errs on goto labels
 struct genericNode* registerSymbol(struct symbolEntry* in){
-
-	printf("register Symbol\n");
 
 	//see if it's an immediate
 	long immediateCheck = 0;
 	if(strcmp(in->name, "0imm") == 0)	//0imm is an invalid user symbol name, but it's the internal way of marking immediates
 		immediateCheck = 1;
 
-	printf("finish immediate check\n");
+	
+	long inType = NONE_MOD;
+	for(int i = 31; i >= 0; i--)
+		if(in->modString[i] != NONE_MOD){
+			inType = in->modString[i];
+			break;
+		}
 
 	//see if it exists
 	struct symbolEntry* current = symbolStackPointer;
@@ -874,6 +868,9 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 			if(immediateCheck){ //see if it's an immediate we already have in the DAG
 				if(strcmp(in->constValue, current->constValue) != 0) 
 					goto BADCONST;	//const is different value than we need;
+			
+			}else if(inType == CLOSE_FUNCTION_POSTFIX && in->innerScope != NULL){
+				current->innerScope = in->innerScope; //update the scope
 			
 			}else if(in->modString[0] != REF_MOD){ //it's a not a immediate, nor a reference, double define
 				fprintf(stderr, "ERROR: DOUBLE DEFINE: %s, ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER);
@@ -904,11 +901,9 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 		current = current->next;
 	}
 
-	printf("before BADCONST\n");
 
 BADCONST:;
 
-	printf("after BADCONST\n");
 
 	//see if it's an invalid reference
 	if(in->modString[0] == REF_MOD && in->modString[0] == LABEL_BASE){ //it's a label reference, mark it as in progress
@@ -925,11 +920,9 @@ BADCONST:;
 	
 		return temp;
 	}else if(in->modString[0] == REF_MOD){ //it's a reference...
-		printf("ERR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
+		fprintf(stderr, "ERR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
 		exit(1);
 	}
-
-	printf("after REF\n");
 
 	//otherwise register it, and make a node for it
 	in->next = symbolStackPointer;
@@ -950,14 +943,12 @@ void openScope(){
 	symbolStackPointer->baseStore = symbolBasePointer;
 	symbolBasePointer = symbolStackPointer;
 	currentScopeCounter++;
-	printf("OpenedScope\n");
 }
 
 void closeScope(){
 	currentScopeCounter--;
 	symbolStackPointer = symbolBasePointer;
 	symbolBasePointer = symbolStackPointer->baseStore;
-	printf("ClosedScope\n");
 }
 
 
@@ -1034,15 +1025,13 @@ void endFunction(){
 //mode = 1 -> don't allow dangling function types; mode = 0 -> allow dangling function types
 struct genericNode* registerNodeOperator(struct genericNode* in, int mode){
 
-	printf("registerNode\n");
-
 	in->timestamp = globalTimestamp++;
 
 	for(int i = 31; i >= 0; i--)
 		if(in->modString[i] != NONE_MOD){			
 			if(in->modString[i] == CLOSE_FUNCTION_POSTFIX) //check to see if we have a dangling function
 				if(mode){
-					printf("ERR: DANGLING FUNCTION TYPE, LINE %ld\n", GLOBAL_LINE_NUMBER); //...to something that doesn't exist
+					fprintf(stderr, "ERR: DANGLING FUNCTION TYPE, LINE %ld\n", GLOBAL_LINE_NUMBER); //...to something that doesn't exist
 					exit(1);
 				}
 
@@ -1080,8 +1069,6 @@ struct genericNode* registerNodeOperator(struct genericNode* in, int mode){
 		dagSize++;
 	}
 
-	printf("3\n");
-
 	return in;
 }
 
@@ -1101,8 +1088,6 @@ struct genericNode* registerNodeFunction(struct genericNode* in){
 //adds a new child to a node, but since reallocing a node more often than not loses it's place in memory
 //we have to go through and update all instances of it's old pointer
 struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
-
-	printf("appending child\n");
 
 	printf("children : %ld\n", p->childCount);
 
