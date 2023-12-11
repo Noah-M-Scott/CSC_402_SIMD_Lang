@@ -833,8 +833,10 @@ void initNodes(){
 	dagSize = 512;
 }
 
+//max elements in 128 vector
+int maxForType(char type){
 
-
+}
 
 
 // take in an unregistered symbol, register it, produce a unregistered node; delay errs on goto labels

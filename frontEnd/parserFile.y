@@ -347,16 +347,6 @@ prefix_operation:
 		$$ = registerNode(temp);
 	}
 
-	| ADD_BAR_OP prefix_operation { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-		temp->type = RUN_SUM_TYPE;
-		memcpy(temp->modString, $2->modString, 32);
-		temp->childCount = 1;
-		temp->children[0] = $2;
-		requireVecs($2);		//require vecs for running sum
-		$$ = registerNode(temp);
-	}
-
 	;
 
 
@@ -728,9 +718,14 @@ base_type_postfix:
 		$1[globalTypeIndex] = VECTOR_MOD;
 		enforceScalerInts($3);							//vector size must be an int
 		long temp;
+		if($1[globalTypeIndex + 2] == BYTE_BASE){
+			fprintf(stderr, "ERR: currently, byte vectors are unsuported\n");
+			exit(1);
+		}
+
 		sscanf( ((struct symbolEntry*)($3->children[0]))->constValue, "%ld", &temp); //extract the constant size from the constant
-		if(temp > 128 || temp < 1){
-			fprintf(stderr, "ERR: vector constant too large (not 1 to 128), %ld", temp); //vectors are short, 1 to 128 elements
+		if(temp > maxForType($1[globalTypeIndex + 2]) || temp < 1){
+			fprintf(stderr, "ERR: vector constant too large (not 1 to %d), %ld", maxForType($1[globalTypeIndex + 2]), temp); //vectors are short, 1 to 128 elements
 			exit(1);
 		}
 		$1[globalTypeIndex + 1] = (char)(-temp);	//enter length, vector lengths are stored negative to avoid conflicts with the TYPE markers
