@@ -357,16 +357,6 @@ prefix_operation:
 		$$ = registerNode(temp);
 	}
 
-	| SUB_BAR_OP prefix_operation { 
-		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*));
-		temp->type = RUN_DIF_TYPE;
-		memcpy(temp->modString, $2->modString, 32);
-		temp->childCount = 1;
-		temp->children[0] = $2;
-		requireVecs($2);		//require vecs for running dif
-		$$ = registerNode(temp);
-	}
-
 	;
 
 
@@ -595,6 +585,7 @@ logical_and_operation:
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = LOGIC_AND_TYPE;
 		memcpy(temp->modString, $1->modString, 32); //carry the left type forward, but logical ops ignore type
+		//enforce matching vector lengths / scalars
 		temp->childCount = 2;
 		temp->children[0] = $1;
 		temp->children[1] = $3;
