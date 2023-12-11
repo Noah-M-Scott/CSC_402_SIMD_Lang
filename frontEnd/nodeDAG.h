@@ -865,7 +865,7 @@ struct genericNode* registerSymbol(struct symbolEntry* in){
 					goto BADCONST;	//const is different value than we need;
 			
 			}else if(inType == CLOSE_FUNCTION_POSTFIX && in->innerScope != NULL){
-				current->innerScope = in->innerScope; //update the scope
+				goto MAKEANYWAY;	//place in the full function
 			
 			}else if(in->modString[0] != REF_MOD){ //it's a not a immediate, nor a reference, double define
 				fprintf(stderr, "ERROR: DOUBLE DEFINE: %s, ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER);
@@ -918,6 +918,8 @@ BADCONST:;
 		fprintf(stderr, "ERR: NON-EXISTANT SYMBOL: %s ON LINE %ld\n", in->name, GLOBAL_LINE_NUMBER); //...to something that doesn't exist
 		exit(1);
 	}
+
+MAKEANYWAY:
 
 	//otherwise register it, and make a node for it
 	in->next = symbolStackPointer;

@@ -9,21 +9,6 @@ FILE outFile;
 //reserve r15 as a helper register
 //reserve xmm0 as a helper register
 
-//pull the constant number from in
-int getInnerNumber(struct genericNode* in){
-
-}
-
-//used for typing the data literals
-void lastType(struct genericNode* in){
-
-}
-
-//how many elements are in a xmm register of in's type
-int  elementCount(struct genericNode* in){
-
-}
-
 //keeps a list of registers for use, what address a currently using them
 char* getReg(struct genericNode* me, struct genericNode* mine){
 
@@ -34,34 +19,129 @@ char* getSymbol(struct genericNode* in){
 
 }
 
-//get the type prefix/trailing type
-char getType(struct genericNode* in){
+//pull the constant number from in
+char* getInnerNumber(struct genericNode* in){
+    return ((struct symbolEntry*)(in->children[0]))->constValue;
+}
 
+long lastBaseTypeWas;
+//used for typing the data literals
+void lastType(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) {lastBaseTypeWas = POINTER_POSTFIX; return;}
+		if( in->modString[i] == BYTE_BASE)       {lastBaseTypeWas = BYTE_BASE; return;}
+		if( in->modString[i] == WORD_BASE)       {lastBaseTypeWas = WORD_BASE; return;}
+        if( in->modString[i] == LONG_BASE)       {lastBaseTypeWas = LONG_BASE; return;}
+        if( in->modString[i] == QUAD_BASE)       {lastBaseTypeWas = QUAD_BASE; return;}
+        if( in->modString[i] == SINGLE_BASE)     {lastBaseTypeWas = LONG_BASE; return;}
+        if( in->modString[i] == DOUBLE_BASE)     {lastBaseTypeWas = QUAD_BASE; return;}
+    }
+}
+
+//how many elements are in a xmm register of in's type
+int elementCount(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 2;
+		if( in->modString[i] == BYTE_BASE) return 16;
+		if( in->modString[i] == WORD_BASE) return 8;
+        if( in->modString[i] == LONG_BASE) return 4;
+        if( in->modString[i] == QUAD_BASE) return 2;
+        if( in->modString[i] == SINGLE_BASE) return 4;
+        if( in->modString[i] == DOUBLE_BASE) return 2;
+    }
+    
+    return 0;
 }
 
 //get the type prefix/trailing type
-char getTypeInt(struct genericNode* in){
+char getType(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 'q';
+		if( in->modString[i] == BYTE_BASE) return 'b';
+		if( in->modString[i] == WORD_BASE) return 'w';
+        if( in->modString[i] == LONG_BASE) return 'l';
+        if( in->modString[i] == QUAD_BASE) return 'q';
+        if( in->modString[i] == SINGLE_BASE) return 's';
+        if( in->modString[i] == DOUBLE_BASE) return 'd';
+    }
+    
+    return 0;
+}
 
+//get the name of the type's size
+char* getTypeSizeName(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return "quad";
+		if( in->modString[i] == BYTE_BASE) return "byte";
+		if( in->modString[i] == WORD_BASE) return "word";
+        if( in->modString[i] == LONG_BASE) return "long";
+        if( in->modString[i] == QUAD_BASE) return "quad";
+        if( in->modString[i] == SINGLE_BASE) return "long";
+        if( in->modString[i] == DOUBLE_BASE) return "quad";
+    }
+    
+    return 0;
+}
+
+//get the type prefix/trailing type, alias floats to matching int size
+char getTypeInt(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 'q';
+		if( in->modString[i] == BYTE_BASE) return 'b';
+		if( in->modString[i] == WORD_BASE) return 'w';
+        if( in->modString[i] == LONG_BASE) return 'l';
+        if( in->modString[i] == QUAD_BASE) return 'q';
+        if( in->modString[i] == SINGLE_BASE) return 'l';
+        if( in->modString[i] == DOUBLE_BASE) return 'q';
+    }
+    
+    return 0;
 }
 
 //is the trailing type a int (this counts pointers)
 long isInt(struct genericNode* in){
-
+	for(int i = 31; i >= 0; i--)
+		if( in->modString[i] == POINTER_POSTFIX || 
+            in->modString[i] == BYTE_BASE || 
+            in->modString[i] == WORD_BASE || 
+            in->modString[i] == LONG_BASE || 
+            in->modString[i] == QUAD_BASE || ){
+			return 1;
+	    }
+    
+    return 0;
 }
 
-//is the trailing type a int (this counts pointers)
+//is the trailing type a pointer
 long isPointer(struct genericNode* in){
-
+	for(int i = 31; i >= 0; i--)
+		if(in->modString[i] == POINTER_POSTFIX){
+			return 1;
+	    }
+    
+    return 0;
 }
 
 //is the trailing type a float
 long isFloat(struct genericNode* in){
+
+	for(int i = 31; i >= 0; i--)
+		if(in->modString[i] == SINGLE_BASE || in->modString[i] == DOUBLE_BASE){
+			return 1;
+	    }
     
+    return 0;
 }
 
 //is the trailing type vector, returns size
 long isVec(struct genericNode* in){
+
+	for(int i = 31; i >= 0; i--)
+		if(in->modString[i] == VECTOR_MOD){
+			return -(in->modString[i + 1]); //flip the sign, as the length is stored negative
+	    }
     
+    return 0;
 }
 
 long labelCounter;
@@ -74,7 +154,31 @@ long loopLabelStackExit[512];
 long loopLabelPointerTop = 0;
 long loopLabelPointerExit = 0;
 
-void symbolNode(struct genericNode* in){ //if a symbol isn't handled, it's a definition
+void symbolNode(struct genericNode* in){ //if a symbol isn't handled, it's a outer scope definition
+
+    long inType = NONE_MOD;
+	for(int i = 31; i >= 0; i--)
+		if(in->children[0]->modString[i] != NONE_MOD){
+			inType = in->children[0]->modString[i];
+			break;
+	    }
+    
+    if(inType == CLOSE_FUNCTION_POSTFIX){
+        if(((struct symbolEntry*)(in->children[0]))->innerScope != NULL){ //full bodied function
+            fprintf(outFile, "
+            pushq   \%r15\n
+            pushq   \%r14\n
+            pushq   \%r13\n
+            pushq   \%r12\n
+            pushq   \%rbx\n
+            pushq   \%rbp\n
+            movq    \%rsp, %rbp\n", );
+            resetRegs();
+            generalNode(((struct symbolEntry*)(in->children[0]))->innerScope);
+        }else
+            return; //don't write function prototypes
+    }else   //print base variable
+        fprintf(outFile, "%s: .%s %s\n", (struct symbolEntry*)(in->children[0]->children[0])->name, getTypeSizeName(in));
 
 }
 
@@ -83,7 +187,7 @@ void labelNode(struct genericNode* in){
 }
 
 void gotoNode(struct genericNode* in){
-    
+
 }
 
 
@@ -231,6 +335,15 @@ void derefNode(struct genericNode* in){
 }
 
 void equNode(struct genericNode* in){
+
+    if(scopeCounter == 0){  //handle scope zero set definitions
+        fprintf(outFile, "%s: .%s %s\n", 
+        (struct symbolEntry*)(in->children[0]->children[0])->name,
+        getTypeSizeName(in), 
+        (struct symbolEntry*)(in->children[1]->children[0])->constValue);
+        return;
+    }
+
     long vectorSize = isVec(in);
     if(vectorSize){ //-------------------- VECTOR CODE ----------------------------------------------
 
@@ -1644,10 +1757,10 @@ void mulNode(struct genericNode* in){
 
 void vecIndexNode(struct genericNode* in){
     if(in->children[0]->type == SYMBOL_TYPE){
-        fprintf(outFile, "pextr%c %s, %s, %d\n", getTypeInt(in), getSymbol(in->children[0]), getReg(in, in), getInnerNumber(in->children[1]));
+        fprintf(outFile, "pextr%c %s, %s, %s\n", getTypeInt(in), getSymbol(in->children[0]), getReg(in, in), getInnerNumber(in->children[1]));
     }else{
         generalNode(in->children[0]);
-        fprintf(outFile, "pextr%c %s, %s, %d\n", getTypeInt(in), getReg(in, in->children[0]), getReg(in, in), getInnerNumber(in->children[1]));
+        fprintf(outFile, "pextr%c %s, %s, %s\n", getTypeInt(in), getReg(in, in->children[0]), getReg(in, in), getInnerNumber(in->children[1]));
     }
 }
 
@@ -1786,11 +1899,25 @@ void callParamNode(struct genericNode* in){
 }
 
 void returnNode(struct genericNode* in){
-    fprintf("movq   \%rbp, \%rsp\npopq    \%rbp\nret\n");
+    fprintf(outFile, "
+        movq    \%rbp, %rsp\n
+        popq    \%rbp\n
+        popq    \%rbx\n
+        popq    \%r12\n
+        popq    \%r13\n
+        popq    \%r14\n
+        popq    \%r15\n", );
 }
 
 void returnExpNode(struct genericNode* in){
-
+    fprintf(outFile, "
+        movq    \%rbp, %rsp\n
+        popq    \%rbp\n
+        popq    \%rbx\n
+        popq    \%r12\n
+        popq    \%r13\n
+        popq    \%r14\n
+        popq    \%r15\n", );
 }
 
 
@@ -1849,11 +1976,15 @@ void generalNode(struct generalNode* in){
 
 
 
-int backEnd(char* outFile, struct genericNode* DAGinin[]){
+int backEnd(char* outFileName, struct genericNode* DAGinin[]){
 	
+    outFile = fopen(outFileName, "w");
+
 	DAGin = DAGinin;
 
 	dagConvert(DAGin[0]);
+
+    fclose(outFile);
 
 	return 0;
 }
