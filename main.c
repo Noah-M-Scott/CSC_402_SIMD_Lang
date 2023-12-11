@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 extern void* frontEnd(char *in);
-extern int middleEnd(void* in);
+extern int backEnd(char* name, void* in);
 
 int main(){
 	backEnd("out.s", frontEnd("demo.txt"));

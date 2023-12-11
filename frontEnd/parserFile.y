@@ -14,7 +14,6 @@ int yylex(void);
 void yyerror(char const *);
 
 FILE *inFile;
-FILE *outFile;
 %}
 
 %define parse.error verbose
@@ -102,6 +101,7 @@ FILE *outFile;
 %token BACKSLASH_OP
 %token COMMA_OP
 
+%nterm <struct genericNode*> input
 %nterm <struct genericNode*> constant
 %nterm <struct genericNode*> initial_expression
 %nterm <char*> initializer_list
