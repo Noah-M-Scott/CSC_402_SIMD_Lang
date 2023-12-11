@@ -765,7 +765,7 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 		//create label immediate
 		strcpy( &(temp->name)[1], inValue );
 		
-		temp->name[0] = '&';
+		temp->name[0] = '$';	//this is a cheap trick to ease translation, relying on how the gas asm uses label vs [label]
 
 		strcpy( temp->constValue, inValue );
 		
