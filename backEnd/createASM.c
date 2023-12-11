@@ -23,7 +23,7 @@ void resetRegs(){
 }
 
 char* getRaxSize(struct genericNode* me){
-
+    return "%%rax";
 }
 
 //turns local variables into offset(%rbp), or if it's a global variable name(%rip)
@@ -124,6 +124,21 @@ long isInt(struct genericNode* in){
     return 0;
 }
 
+int enumType(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 3;
+        if( in->modString[i] == VECTOR_MOD) return 4;
+		if( in->modString[i] == BYTE_BASE) return 0;
+		if( in->modString[i] == WORD_BASE) return 1;
+        if( in->modString[i] == LONG_BASE) return 2;
+        if( in->modString[i] == QUAD_BASE) return 3;
+        if( in->modString[i] == SINGLE_BASE) return 4;
+        if( in->modString[i] == DOUBLE_BASE) return 4;
+    }
+    
+    return 3;
+}
+
 //is the trailing type a pointer
 long isPointer(struct genericNode* in){
 	for(int i = 31; i >= 0; i--)
@@ -156,9 +171,19 @@ long isVec(struct genericNode* in){
     return 0;
 }
 
+long isVoid(struct genericNode* in){
+
+	for(int i = 31; i >= 0; i--)
+		if(in->modString[i] == VOID_BASE){
+			return 1;
+	    }
+    
+    return 0;
+}
+
 //make pblendw mask to match the length of the vector
 long createSizeMask(struct genericNode* in){
-
+    return 4;
 }
 
 
@@ -187,13 +212,14 @@ void symbolNode(struct genericNode* in){ //if a symbol isn't handled, it's a out
     
     if(inType == CLOSE_FUNCTION_POSTFIX){
         if(((struct symbolEntry*)(in->children[0]))->innerScope != NULL){ //full bodied function
+            fprintf(outFile, "\n.globl\t%s\n.p2align 4\n%s:\n", ((struct symbolEntry*)(in->children[0]))->name, ((struct symbolEntry*)(in->children[0]))->name);
             fprintf(outFile, "pushq\t%%r15\npushq\t%%r14\npushq\t%%r13\npushq\t%%r12\npushq\t%%rbx\npushq\t%%rbp\nmovq\t%%rsp, %%rbp\n");
             resetRegs();
             generalNode(((struct symbolEntry*)(in->children[0]))->innerScope);
         }else
             return; //don't write function prototypes
     }else   //print base variable
-        fprintf(outFile, "%s: .%s\n", ((struct symbolEntry*)(in->children[0]->children[0]))->name, getTypeSizeName(in));
+        fprintf(outFile, "%s: .%s\n", ((struct symbolEntry*)(in->children[0]))->name, getTypeSizeName(in));
 
 }
 
@@ -212,7 +238,6 @@ void scopeNode(struct genericNode* in){
         generalNode(in->children[i]);
 
     scopeCounter--;
-    free(in);
 }
 
 void forNode(struct genericNode* in){
@@ -229,19 +254,18 @@ void forNode(struct genericNode* in){
 
     generalNode(in->children[1]);
 
-    fprintf(outFile, "movq   %s, %%r15\n", getReg(in, in->children[1]));  //movq handles both floats and clearing short ints
-    fprintf(outFile, "cmpq   $0, %%r15\n");
-    fprintf(outFile, "jz    L%ld\n", exitLabel);
+    fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[1]));  //movq handles both floats and clearing short ints
+    fprintf(outFile, "cmpq\t$0, %%r15\n");
+    fprintf(outFile, "jz\tL%ld\n", exitLabel);
 
     generalNode(in->children[2]);
 
-    fprintf(outFile, "jmp   L%ld\n", tempLabel);
+    fprintf(outFile, "jmp\tL%ld\n", tempLabel);
     fprintf(outFile, "L%ld:\n", exitLabel);
 
     loopLabelPointerTop--;
     loopLabelPointerExit--;
 
-    free(in);
 }
 
 void whileNode(struct genericNode* in){
@@ -268,7 +292,6 @@ void whileNode(struct genericNode* in){
     loopLabelPointerTop--;
     loopLabelPointerExit--;
 
-    free(in);
 }
 
 void continueNode(struct genericNode* in){
@@ -292,7 +315,6 @@ void ifNode(struct genericNode* in){
     generalNode(in->children[1]);
 
     fprintf(outFile, "L%ld:\n", tempLabel);
-    free(in);
 }
 
 void ifElseNode(struct genericNode* in){
@@ -312,7 +334,7 @@ void ifElseNode(struct genericNode* in){
     generalNode(in->children[2]);
 
     fprintf(outFile, "L%ld:\n", tempLabelElse);
-    free(in);
+
 }
 
 void derefNode(struct genericNode* in){
@@ -1772,95 +1794,97 @@ void vecIndexNode(struct genericNode* in){
 }
 
 void preCallPush(){
-    fprintf(outFile, " \
-    pushq\t%%rdi\n \
-    pushq\t%%rsi\n \
-    pushq\t%%rdx\n \
-    pushq\t%%rcx\n \
-    pushq\t%%r8\n \
-    pushq\t%%r9\n \
-    pushq\t%%r10\n \
-    pushq\t%%r11\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm1, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm2, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm3, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm4, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm5, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm6, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm7, (%%rsp)\n \
-    addq\t$16, %%rsp\n \
-    movdqu\t%%xmm8, (%%rsp)\n \
-    ");
+    fprintf(outFile, "\
+pushq\t%%rdi\n\
+pushq\t%%rsi\n\
+pushq\t%%rdx\n\
+pushq\t%%rcx\n\
+pushq\t%%r8\n\
+pushq\t%%r9\n\
+pushq\t%%r10\n\
+pushq\t%%r11\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm1, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm2, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm3, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm4, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm5, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm6, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm7, (%%rsp)\n\
+addq\t$16, %%rsp\n\
+movdqu\t%%xmm8, (%%rsp)\n\
+");
 }
 
 void postCallPop(){
-    fprintf(outFile, " \
-    movdqu\t(%%rsp), %%xmm8\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm7\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm6\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm5\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm4\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm3\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm2\n \
-    subq\t$16, %%rsp\n \
-    movdqu\t(%%rsp), %%xmm1\n \
-    subq\t$16, %%rsp\n \
-    popq\t%%r11\n \
-    popq\t%%r10\n \
-    popq\t%%r9\n \
-    popq\t%%r8\n \
-    popq\t%%rcx\n \
-    popq\t%%rdx\n \
-    popq\t%%rsi\n \
-    popq\t%%rdi\n \
-    ");
+    fprintf(outFile, "\
+movdqu\t(%%rsp), %%xmm8\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm7\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm6\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm5\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm4\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm3\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm2\n\
+subq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm1\n\
+subq\t$16, %%rsp\n\
+popq\t%%r11\n\
+popq\t%%r10\n\
+popq\t%%r9\n\
+popq\t%%r8\n\
+popq\t%%rcx\n\
+popq\t%%rdx\n\
+popq\t%%rsi\n\
+popq\t%%rdi\n\
+");
 }
 
 void callNode(struct genericNode* in){ 
+
     long vectorSize = isVec(in);
+    if(!isVoid(in))
     if(vectorSize){ //-------------------- VECTOR CODE ----------------------------------------------
-        fprintf(outFile, "pushq %%rax\n");     
+        fprintf(outFile, "pushq\t%%rax\n");     
     }else{ //----------------- SCALAR CODE ---------------------------------------------------------------
         if(isInt(in)){ // --------------------- INTEGER ---------------------------------------
-            fprintf(outFile, "addq    $16, %%rsp\nmovdqu  %%xmm0, (%%rsp)\n"); 
+            fprintf(outFile, "subq\t$16, %%rsp\nmovdqu\t%%xmm0, (%%rsp)\n"); 
         }else{ // ------------------ FLOATING -------------------------------------------------------------
-            fprintf(outFile, "pushq %%rax\n");
+            fprintf(outFile, "pushq\t%%rax\n");
         }
     }
 
     preCallPush();   
     if(in->children[0]->type == SYMBOL_TYPE){
-            fprintf(outFile, "call %s\n", getSymbol(in->children[0]));
+            fprintf(outFile, "call\t%s\n", getSymbol(in->children[0]));
         }else{
             generalNode(in->children[0]);
-            fprintf(outFile, "call %s\n", getReg(in, in->children[0]));
+            fprintf(outFile, "call\t%s\n", getReg(in, in->children[0]));
     }
-
     postCallPop();
 
+    if(!isVoid(in))
     if(vectorSize){ //-------------------- VECTOR CODE ----------------------------------------------
-        fprintf(outFile, "movdqa %%xmm0, %s", getReg(in, in));
-        fprintf(outFile, "popq %%rax\n");
+        fprintf(outFile, "movdqa\t%%xmm0, %s\n", getReg(in, in));
+        fprintf(outFile, "popq\t%%rax\n");
     }else{ //----------------- SCALAR CODE ---------------------------------------------------------------
         if(isInt(in)){ // --------------------- INTEGER ---------------------------------------
-            fprintf(outFile, "mov%c %s, %s", getType(in), getRaxSize(in), getReg(in, in));
-            fprintf(outFile, "movdqu  (%%rsp), %%xmm0\nsubq    $16, %%rsp\n"); 
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in), getRaxSize(in), getReg(in, in));
+            fprintf(outFile, "movdqu\t(%%rsp), %%xmm0\naddq\t$16, %%rsp\n"); 
         }else{ // ------------------ FLOATING -------------------------------------------------------------
-            fprintf(outFile, "movdqa %%xmm0, %s", getReg(in, in));
-            fprintf(outFile, "popq %%rax\n");
+            fprintf(outFile, "movdqa\t%%xmm0, %s\n", getReg(in, in));
+            fprintf(outFile, "popq\t%%rax\n");
         }
     }
 }
@@ -1870,54 +1894,115 @@ void permuteNode(struct genericNode* in){
 }
 
 void callParamNode(struct genericNode* in){
+
+    generalNode(in->children[0]);
+
+    for(int i = 0; i < in->children[1]->childCount; i++){
+        if(in->children[1]->children[i]->type != SYMBOL_TYPE){
+            generalNode(in->children[1]->children[i]);
+        }
+    }
+
+    if(in->childCount > 6){
+        fprintf(stderr, "ERR: currently the max parameters for a function is 6");
+        exit(1);
+    }
+    
+    char paramRegisters[5][6][7] = {
+        {"%%dil", "%%sil", "%%dl", "%%cl", "%%r8b", "%%r9b"},
+        {"%%di", "%%si", "%%dx", "%%cx", "%%r8w", "%%r9w"},
+        {"%%edi", "%%esi", "%%edx", "%%ecx", "%%r8d", "%%r9d"},
+        {"%%rdi", "%%rsi", "%%rdx", "%%rcx", "%%r8", "%%r9"},
+        {"%%xmm0", "%%xmm1", "%%xmm2", "%%xmm3", "%%xmm4", "%%xmm5"}
+    };
+
+    for(int i = 0; i < in->children[1]->childCount; i++){    
+        if(enumType(in->children[1]->children[i]) == 5)
+            fprintf(outFile, "subq\t$16, %%rsp\nmovdqu\t%s, (%%rsp)\n", 
+            paramRegisters[i][enumType(in->children[1]->children[i])]);
+        else
+            fprintf(outFile, "push%c\t%s\n", getType(in->children[1]->children[i]), 
+            paramRegisters[i][enumType(in->children[1]->children[i])]);
+
+
+        if(in->children[1]->children[i]->type == SYMBOL_TYPE){
+            fprintf(outFile, "mov%c\t%s, %s\n", 
+            getType(in->children[1]->children[i]), 
+            getSymbol(in->children[1]->children[i]), 
+            paramRegisters[i][enumType(in->children[1]->children[i])]);
+        }else{
+            fprintf(outFile, "mov%c\t%s, %s\n", 
+            getType(in->children[1]->children[i]), 
+            getReg(in, in->children[1]->children[i]), 
+            paramRegisters[i][enumType(in->children[1]->children[i])]);
+        }    
+    }
+
     long vectorSize = isVec(in);
+    if(!isVoid(in))
     if(vectorSize){ //-------------------- VECTOR CODE ----------------------------------------------
-        fprintf(outFile, "pushq %%rax\n");     
+        fprintf(outFile, "pushq\t%%rax\n");     
     }else{ //----------------- SCALAR CODE ---------------------------------------------------------------
         if(isInt(in)){ // --------------------- INTEGER ---------------------------------------
-            fprintf(outFile, "addq    $16, %%rsp\nmovdqu  %%xmm0, (%%rsp)\n"); 
+            fprintf(outFile, "addq\t$16, %%rsp\nmovdqu\t%%xmm0, (%%rsp)\n"); 
         }else{ // ------------------ FLOATING -------------------------------------------------------------
-            fprintf(outFile, "pushq %%rax\n");
+            fprintf(outFile, "pushq\t%%rax\n");
         }
     }
 
     preCallPush();   
     if(in->children[0]->type == SYMBOL_TYPE){
-            fprintf(outFile, "call %s\n", getSymbol(in->children[0]));
+            fprintf(outFile, "call\t%s\n", getSymbol(in->children[0]));
         }else{
             generalNode(in->children[0]);
-            fprintf(outFile, "call %s\n", getReg(in, in->children[0]));
+            fprintf(outFile, "call\t%s\n", getReg(in, in->children[0]));
     }
-
     postCallPop();
 
+    if(!isVoid(in))
     if(vectorSize){ //-------------------- VECTOR CODE ----------------------------------------------
-        fprintf(outFile, "movdqa %%xmm0, %s", getReg(in, in));
-        fprintf(outFile, "popq %%rax\n");
+        fprintf(outFile, "movdqa\t%%xmm0, %s\n", getReg(in, in));
+        fprintf(outFile, "popq\t%%rax\n");
     }else{ //----------------- SCALAR CODE ---------------------------------------------------------------
         if(isInt(in)){ // --------------------- INTEGER ---------------------------------------
-            fprintf(outFile, "mov%c %s, %s", getType(in), getRaxSize(in), getReg(in, in));
-            fprintf(outFile, "movdqu  (%%rsp), %%xmm0\nsubq    $16, %%rsp\n"); 
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in), getRaxSize(in), getReg(in, in));
+            fprintf(outFile, "movdqu\t(%%rsp), %%xmm0\nsubq\t$16, %%rsp\n"); 
         }else{ // ------------------ FLOATING -------------------------------------------------------------
-            fprintf(outFile, "movdqa %%xmm0, %s", getReg(in, in));
-            fprintf(outFile, "popq %%rax\n");
+            fprintf(outFile, "movdqa\t%%xmm0, %s\n", getReg(in, in));
+            fprintf(outFile, "popq\t%%rax\n");
         }
     }
+
+    for(int i = 0; i < in->childCount; i++){
+        if(enumType(in->children[0]) == 5)
+            fprintf(outFile, "movdqu\t(%%rsp), %s\naddq\t$16, %%rsp\n", paramRegisters[i][enumType(in->children[0])]);
+        else
+            fprintf(outFile, "pop%c\t%s\n", getType(in->children[0]), paramRegisters[i][enumType(in->children[0])]);
+    }
 }
+
 
 void returnNode(struct genericNode* in){
     fprintf(outFile, "movq\t%%rbp, %%rsp\npopq\t%%rbp\npopq\t%%rbx\npopq\t%%r12\npopq\t%%r13\npopq\t%%r14\npopq\t%%r15\n");
 }
 
+
 void returnExpNode(struct genericNode* in){
 
-    generalNode(in);
-
+    if(in->children[0]->type == SYMBOL_TYPE){
+        fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getSymbol(in->children[0]), getRaxSize(in->children[0]));
+    }else{
+        generalNode(in->children[0]);
+        fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getRaxSize(in->children[0]));
+    }
+    
     fprintf(outFile, "movq\t%%rbp, %%rsp\npopq\t%%rbp\npopq\t%%rbx\npopq\t%%r12\npopq\t%%r13\npopq\t%%r14\npopq\t%%r15\n");
+    
 }
 
 
 void generalNode(struct genericNode* in){
+
     if(in == NULL)
         return;
 
@@ -1963,7 +2048,7 @@ void generalNode(struct genericNode* in){
 	case(CALL_TYPE):                callNode(in); break;
 	case(CALL_PARAM_TYPE):          callParamNode(in); break;
     default:
-        fprintf(stderr, "ERR UNKNOWN NODE TYPE\n");
+        fprintf(stderr, "ERR UNKNOWN NODE TYPE %ld\n", in->type);
         exit(1);
 	}
 
@@ -1977,6 +2062,7 @@ int backEnd(char* outFileName, struct genericNode* DAGinin[]){
 
 	DAGin = DAGinin;
 
+    printf("Starting work\n");
 	generalNode(DAGin[0]);
 
     fclose(outFile);
