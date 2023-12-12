@@ -2,6 +2,8 @@
 
 A Proof of concept language for implementing SIMD concepts into a typed language.
 
+Use the compile.sh script to run the demo.
+
 This class had two focuses: to research SIMD implementations, and to act as the 
 replacement for the compiler's class, which has not been taught for several years.
 
