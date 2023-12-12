@@ -9,6 +9,9 @@
 
 [\n]			{ IN_COM = 0; GLOBAL_LINE_NUMBER++; continue; }
 
+"\""[a-zA-Z0-9_]+"\"" { if(IN_COM) continue; yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
+
+
 [0-9]+"."[0-9]+  	{ if(IN_COM) continue; yylval.FLOAT = strdup(yytext); return FLOAT; } //float
 "-"[0-9]+"."[0-9]+  	{ if(IN_COM) continue; yylval.FLOAT = strdup(yytext); return FLOAT; } //float
 
@@ -17,7 +20,6 @@
 
 "0x"[0-9a-fA-F]+ 	{ if(IN_COM) continue; yylval.HEX = strdup(yytext); return HEX; } //hex
 "0b"[0-1]+		{ if(IN_COM) continue; yylval.BINARY = strdup(yytext); return BINARY; } //binary
-
 
 "//"		{ IN_COM = 1; continue; }
 
@@ -93,9 +95,6 @@
 "NOTHING"	{ if(IN_COM) continue; return NOTHING_OP; }
 "BLOCK"		{ if(IN_COM) continue; return BLOCK_OP; }
 
-
-
-"\""[.]+"\""		{ if(IN_COM) continue; yylval.STRING_LIT = strdup(yytext); return STRING_LIT; }
 
 [a-zA-Z][a-zA-Z0-9_]*	{ if(IN_COM) continue; yylval.IDENT = strdup(yytext); return IDENT; }
 

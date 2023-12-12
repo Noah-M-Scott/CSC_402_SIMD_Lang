@@ -159,7 +159,7 @@ constant:
 	| BINARY			{ $$ = registerNode(registerSymbol(createImmediate($1,  2)));  }
 	| HEX				{ $$ = registerNode(registerSymbol(createImmediate($1,  1)));  }
 	| initializer_list BACKSLASH_OP		{ $$ = registerNode(registerSymbol(createImmediate($1, 6))); } //like string lit, but of const type
-	| STRING_LIT				{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); } //string immediate (char*)
+	| STRING_LIT		{ $$ = registerNode(registerSymbol(createImmediate($1, 4))); } //string immediate (char*)
 	;
 
 
@@ -192,30 +192,38 @@ initializer_list:
 
 	| initializer_list COMMA_OP DECIMAL { 
 		checkDataLitType(0); 
-		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 1); 
-		strcpy(&$$[dataLitIndex], $3); //indexing $$, then getting it's reference: &
-		dataLitIndex += strlen($3); 
+		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 3);
+		$$[dataLitIndex + 0] = ',';
+		$$[dataLitIndex + 1] = ' ';
+		strcpy(&$$[dataLitIndex + 2], $3); //indexing $$, then getting it's reference: &
+		dataLitIndex += strlen($3) + 2; 
 	}
 
 	| initializer_list COMMA_OP FLOAT { 
 		checkDataLitType(1); 
-		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 1); 
-		strcpy(&$$[dataLitIndex], $3); 
-		dataLitIndex += strlen( $3 ); 
+		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 3); 
+		$$[dataLitIndex + 0] = ',';
+		$$[dataLitIndex + 1] = ' ';
+		strcpy(&$$[dataLitIndex + 2], $3); 
+		dataLitIndex += strlen($3) + 2; 
 	}
 
 	| initializer_list COMMA_OP BINARY { 
 		checkDataLitType(0); 
-		$$ = realloc($1, dataLitIndex + strlen( $3 )+1); 
-		strcpy(&$$[dataLitIndex], $3); 
-		dataLitIndex += strlen($3); 
+		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 3); 
+		$$[dataLitIndex + 0] = ',';
+		$$[dataLitIndex + 1] = ' ';
+		strcpy(&$$[dataLitIndex + 2], $3); 
+		dataLitIndex += strlen($3) + 2; 
 	}
 
 	| initializer_list COMMA_OP HEX { 
 		checkDataLitType(0); 
-		$$ = realloc($1, dataLitIndex + strlen( $3 )+1); 
-		strcpy(&$$[dataLitIndex], $3); 
-		dataLitIndex += strlen($3); 
+		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 3);
+		$$[dataLitIndex + 0] = ',';
+		$$[dataLitIndex + 1] = ' ';
+		strcpy(&$$[dataLitIndex + 2], $3); 
+		dataLitIndex += strlen($3) + 2; 
 	}
 
 	;
@@ -992,7 +1000,7 @@ struct genericNode** frontEnd(char *filename){
 	yyin = stdin;
 	GLOBAL_LINE_NUMBER = 0;
 
-	yydebug = 0;
+	yydebug = 1;
 	
 	initNodes();
 

@@ -6,34 +6,163 @@
 struct genericNode** DAGin;
 
 FILE* outFile;
+long labelCounter = 0;
+long stackOffsetCounter = 0;
+long scopeCounter = 0;
+int lastBaseTypeWas = 0;
 
-//reserve r15 as a helper register
+long loopLabelStackTop[512];
+long loopLabelStackExit[512];
+long loopLabelPointerTop = 0;
+long loopLabelPointerExit = 0;
+
+//reserve r12, r13, r14, r15 as helper registers
 //reserve xmm0 as a helper register
 
+//for indexing on type
+int enumType(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 3;
+        if( in->modString[i] == VECTOR_MOD) return 4;
+		if( in->modString[i] == BYTE_BASE) return 0;
+		if( in->modString[i] == WORD_BASE) return 1;
+        if( in->modString[i] == LONG_BASE) return 2;
+        if( in->modString[i] == QUAD_BASE) return 3;
+        if( in->modString[i] == SINGLE_BASE) return 4;
+        if( in->modString[i] == DOUBLE_BASE) return 4;
+    }
+    
+    return 3;
+}
+
+//returns the size of a type
+int getTypeSizeInt(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 8;
+        if( in->modString[i] == VECTOR_MOD) return 16;
+		if( in->modString[i] == BYTE_BASE) return 1;
+		if( in->modString[i] == WORD_BASE) return 2;
+        if( in->modString[i] == LONG_BASE) return 4;
+        if( in->modString[i] == QUAD_BASE) return 8;
+        if( in->modString[i] == SINGLE_BASE) return 4;
+        if( in->modString[i] == DOUBLE_BASE) return 8;
+    }
+    
+    return 0;
+}
+
+struct genericNode* registerTracker[10];
+struct genericNode* registerTrackerXmm[10];
+char registerNames[5][10][8] = {
+    {"%dil",   "%sil",  "%dl",   "%cl",   "%r8b",  "%r9b",  "%al",   "%r10b", "%r11b", "%bl"},
+    {"%di",    "%si",   "%dx",   "%cx",   "%r8w",  "%r9w",  "%ax",   "%r10w", "%r11w", "%bx"},
+    {"%edi",   "%esi",  "%edx",  "%ecx",  "%r8d",  "%r9d",  "%eax",  "%r10d", "%r11d", "%ebx"},
+    {"%rdi",   "%rsi",  "%rdx",  "%rcx",  "%r8",   "%r9",   "%rax",  "%r10",  "%r11",  "%rbx"},
+    {"%xmm10", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7", "%xmm8", "%xmm9"}
+};
+
+void resetRegs(){
+    for(int i = 0; i < 5; i++)
+        for(int j = 0; j < 10; j++){
+            registerTracker[i] = NULL;
+            registerTrackerXmm[i] = NULL;
+        }
+}
+
+struct stackPairingNode{
+    long offset;
+    struct genericNode* addr;
+    struct stackPairingNode* next;
+};
+
+struct stackPairingNode* stackPairingHead = NULL;
+
 //keeps a list of registers for use, what address a currently using them
-char* getReg(struct genericNode* me, struct genericNode* mine){
+//0 first check if the addr already has a register checked out, return that if so
+//1 if not check if the addr is in the list of mappings, store a register, than load addr's, return
+//1.5 make sure to check if the addr is a parameter too, those have dedicated mappings
+//1.6 if the mapping is null, go ahead and just asign the register
+//2 if not add addr to the list of mappings, making room for it, then goto above
+char* getReg(struct genericNode* me, struct genericNode* in){
+    static int registerIndex = 0;
+    for(int i = 0; i < 10; i++)
+        if(registerTracker[i] == in || registerTrackerXmm[i] == in)
+            return registerNames[enumType(in)][i];
+
+SWAP_REGISTER:
+
+    registerIndex = (registerIndex + 1) % 10;
     return "%reg";
+
+
+    goto SWAP_REGISTER;
 }
 
 char* getByteReg(struct genericNode* me, struct genericNode* mine){
     return "%reg";
 }
 
-void resetRegs(){
 
-}
 
 char* getRaxSize(struct genericNode* me){
     return "%rax";
 }
 
+//get the name of the type's size
+char* getTypeSizeNameFromInt(int in){
+	if( in == POINTER_POSTFIX) return "quad";
+	if( in == BYTE_BASE) return "byte";
+	if( in == WORD_BASE) return "word";
+    if( in == LONG_BASE) return "long";
+    if( in == QUAD_BASE) return "quad";
+    if( in == SINGLE_BASE) return "long";
+    if( in == DOUBLE_BASE) return "quad";
+}
+
+//delays write untill the end of the file
+char delayBuffer[4098] = {0};
+void delayWriteBuffer(char* in){
+    strcat(delayBuffer, in);
+}
+
 //turns local variables into offset(%rbp), or if it's a global variable name(%rip)
 char* getSymbol(struct genericNode* in){
-    if(strcmp(((struct symbolEntry*)(in->children[0]))->name, "0imm") == 0)
-    
-        return ((struct symbolEntry*)(in->children[0]))->constValue;
-    else
-        return ((struct symbolEntry*)(in->children[0]))->name;
+    static char tempBuffer[256];
+    if(strcmp(((struct symbolEntry*)(in->children[0]))->name, "0imm") == 0){
+
+        if(strncmp(((struct symbolEntry*)(in->children[0]))->constValue, "lit", 3) == 0){
+            long tempLabel = labelCounter++;
+            
+            sprintf(tempBuffer, "L%ld: .%s %s\n", tempLabel, getTypeSizeNameFromInt(lastBaseTypeWas), 
+            (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
+            
+            delayWriteBuffer(tempBuffer);
+            sprintf(tempBuffer, "$L%ld", tempLabel);
+            return tempBuffer;
+        }
+
+        if(strncmp(((struct symbolEntry*)(in->children[0]))->constValue, "str", 3) == 0){
+            long tempLabel = labelCounter++;
+            
+            sprintf(tempBuffer, "L%ld: .asciz %s\n", tempLabel, 
+            (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
+            
+            delayWriteBuffer(tempBuffer);
+            sprintf(tempBuffer, "$L%ld", tempLabel);
+            return tempBuffer;
+        }
+
+        tempBuffer[0] = '$';
+        strcpy(&(tempBuffer[1]), ((struct symbolEntry*)(in->children[0]))->constValue);
+
+    }else{
+        if(((struct symbolEntry*)(in->children[0]))->name[0] == '$')
+            sprintf(tempBuffer, "%s", ((struct symbolEntry*)(in->children[0]))->name);
+        else
+            sprintf(tempBuffer, "%s(%%rip)", ((struct symbolEntry*)(in->children[0]))->name);
+    }
+
+    return tempBuffer;
 }
 
 //pull the constant number from in
@@ -41,7 +170,21 @@ char* getInnerNumber(struct genericNode* in){
     return ((struct symbolEntry*)(in->children[0]))->constValue;
 }
 
-long lastBaseTypeWas;
+//get the name of the type's size
+char* getTypeSizeName(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return "quad";
+		if( in->modString[i] == BYTE_BASE) return "byte";
+		if( in->modString[i] == WORD_BASE) return "word";
+        if( in->modString[i] == LONG_BASE) return "long";
+        if( in->modString[i] == QUAD_BASE) return "quad";
+        if( in->modString[i] == SINGLE_BASE) return "long";
+        if( in->modString[i] == DOUBLE_BASE) return "quad";
+    }
+    
+    return 0;
+}
+
 //used for typing the data literals
 void lastType(struct genericNode* in){
     for(int i = 31; i >= 0; i--){
@@ -85,21 +228,6 @@ char getType(struct genericNode* in){
     return 0;
 }
 
-//get the name of the type's size
-char* getTypeSizeName(struct genericNode* in){
-    for(int i = 31; i >= 0; i--){
-		if( in->modString[i] == POINTER_POSTFIX) return "quad";
-		if( in->modString[i] == BYTE_BASE) return "byte";
-		if( in->modString[i] == WORD_BASE) return "word";
-        if( in->modString[i] == LONG_BASE) return "long";
-        if( in->modString[i] == QUAD_BASE) return "quad";
-        if( in->modString[i] == SINGLE_BASE) return "long";
-        if( in->modString[i] == DOUBLE_BASE) return "quad";
-    }
-    
-    return 0;
-}
-
 //get the type prefix/trailing type, alias floats to matching int size
 char getTypeInt(struct genericNode* in){
     for(int i = 31; i >= 0; i--){
@@ -127,21 +255,6 @@ long isInt(struct genericNode* in){
 	    }
     
     return 0;
-}
-
-int enumType(struct genericNode* in){
-    for(int i = 31; i >= 0; i--){
-		if( in->modString[i] == POINTER_POSTFIX) return 3;
-        if( in->modString[i] == VECTOR_MOD) return 4;
-		if( in->modString[i] == BYTE_BASE) return 0;
-		if( in->modString[i] == WORD_BASE) return 1;
-        if( in->modString[i] == LONG_BASE) return 2;
-        if( in->modString[i] == QUAD_BASE) return 3;
-        if( in->modString[i] == SINGLE_BASE) return 4;
-        if( in->modString[i] == DOUBLE_BASE) return 4;
-    }
-    
-    return 3;
 }
 
 //is the trailing type a pointer
@@ -191,18 +304,30 @@ long createSizeMask(struct genericNode* in){
     return 4;
 }
 
+void pushParameters(){
+    fprintf(outFile, "#\tPlacing Parameters on stack\n");
+    fprintf(outFile, "pushq\t%%rdi\n");
+    fprintf(outFile, "pushq\t%%rsi\n");
+    fprintf(outFile, "pushq\t%%rdx\n");
+    fprintf(outFile, "pushq\t%%rcx\n");
+    fprintf(outFile, "pushq\t%%r8\n");
+    fprintf(outFile, "pushq\t%%r9\n");
 
-
-
-long labelCounter;
-long stackOffsetCounter;
-long scopeCounter;
-long lastWasVec;
-
-long loopLabelStackTop[512];
-long loopLabelStackExit[512];
-long loopLabelPointerTop = 0;
-long loopLabelPointerExit = 0;
+    fprintf(outFile, "subq\t$16, %%rsp\n");
+    fprintf(outFile, "movdqu\t%%xmm10, (%%rsp)\n");
+    fprintf(outFile, "subq\t$16, %%rsp\n");
+    fprintf(outFile, "movdqu\t%%xmm1, (%%rsp)\n");
+    fprintf(outFile, "subq\t$16, %%rsp\n");
+    fprintf(outFile, "movdqu\t%%xmm2, (%%rsp)\n");
+    fprintf(outFile, "subq\t$16, %%rsp\n");
+    fprintf(outFile, "movdqu\t%%xmm3, (%%rsp)\n");
+    fprintf(outFile, "subq\t$16, %%rsp\n");
+    fprintf(outFile, "movdqu\t%%xmm4, (%%rsp)\n");
+    fprintf(outFile, "subq\t$16, %%rsp\n");
+    fprintf(outFile, "movdqu\t%%xmm5, (%%rsp)\n");
+    fprintf(outFile, "#\tDone\n");
+    stackOffsetCounter += 16 * 6 + 8 * 6;   //make note of where they are now
+}
 
 void generalNode(struct genericNode* in);
 
@@ -220,6 +345,8 @@ void symbolNode(struct genericNode* in){ //if a symbol isn't handled, it's a out
             fprintf(outFile, "\n.text\n");
             fprintf(outFile, ".globl\t%s\n.p2align 4\n%s:\n", ((struct symbolEntry*)(in->children[0]))->name, ((struct symbolEntry*)(in->children[0]))->name);
             fprintf(outFile, "pushq\t%%r15\npushq\t%%r14\npushq\t%%r13\npushq\t%%r12\npushq\t%%rbx\npushq\t%%rbp\nmovq\t%%rsp, %%rbp\n");
+            fprintf(outFile, "movdqa\t%%xmm0, %%xmm10\n"); //ensure xmm0 stays as a helper
+            pushParameters();
             resetRegs();
             generalNode(((struct symbolEntry*)(in->children[0]))->innerScope);
         }else
@@ -528,7 +655,6 @@ void ternNode(struct genericNode* in){
         }
 
     }else{ //----------------- SCALAR CODE ---------------------------------------------------------------
-        lastWasVec = 0;
         
         if(isInt(in)){ // --------------------- INTEGER ---------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -804,8 +930,7 @@ void logicalNotNode(struct genericNode* in){
         }
 
     }else{ //----------------- SCALAR CODE ---------------------------------------------------------------
-        lastWasVec = 0;
-        
+
         if(isInt(in)){ // --------------------- INTEGER ---------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
                 fprintf(outFile, "mov%c\t%s, %s\n", getType(in), getSymbol(in->children[0]), getReg(in, in));
@@ -1875,11 +2000,19 @@ subq\t$16, %%rsp\n\
 movdqu\t%%xmm7, (%%rsp)\n\
 subq\t$16, %%rsp\n\
 movdqu\t%%xmm8, (%%rsp)\n\
+subq\t$16, %%rsp\n\
+movdqu\t%%xmm9, (%%rsp)\n\
+subq\t$16, %%rsp\n\
+movdqu\t%%xmm10, (%%rsp)\n\
 ");
 }
 
 void postCallPop(){
     fprintf(outFile, "\
+movdqu\t(%%rsp), %%xmm10\n\
+addq\t$16, %%rsp\n\
+movdqu\t(%%rsp), %%xmm9\n\
+addq\t$16, %%rsp\n\
 movdqu\t(%%rsp), %%xmm8\n\
 addq\t$16, %%rsp\n\
 movdqu\t(%%rsp), %%xmm7\n\
@@ -2127,6 +2260,10 @@ int backEnd(char* outFileName, struct genericNode* DAGinin[]){
     printf("Starting work\n");
     scopeCounter = -1;
 	generalNode(DAGin[0]);
+
+    //write the delay buffer
+    fprintf(outFile, "\n\n.data\n");
+    fprintf(outFile, "%s", delayBuffer);
 
     fclose(outFile);
 

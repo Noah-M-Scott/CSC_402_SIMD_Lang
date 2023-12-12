@@ -8,6 +8,8 @@ long ( long y ) main {
     long x = 5;
     [long] px = &x;
 
+    [byte] string = "funny";
+
     [long<4>] z = \4, 3, 2, 1\;
     long<4> q;
 

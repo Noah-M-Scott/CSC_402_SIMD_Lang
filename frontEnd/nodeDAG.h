@@ -746,6 +746,8 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 		temp->constValue[1] = 't';
 		temp->constValue[2] = 'r';
 
+		printf("Used a string\n");
+
 		temp->innerScope = (struct genericNode*)inValue;
 	
 	}else if (type == 6){
