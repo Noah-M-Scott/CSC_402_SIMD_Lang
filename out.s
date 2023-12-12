@@ -1,13 +1,9 @@
 #	Handling Scope Node
-#	Handling Equ Node
-
-.data
-buzz: .long 4
 
 .text
-.globl	main
+.globl	hello
 .p2align 4
-main:
+hello:
 pushq	%r15
 pushq	%r14
 pushq	%r13
@@ -16,136 +12,196 @@ pushq	%rbx
 pushq	%rbp
 movq	%rsp, %rbp
 movdqa	%xmm0, %xmm10
+#	Placing Parameters on stack
+pushq	%rdi
+pushq	%rsi
+pushq	%rdx
+pushq	%rcx
+pushq	%r8
+pushq	%r9
+subq	$16, %rsp
+movdqu	%xmm10, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm1, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm2, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm3, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm4, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm5, (%rsp)
+#	Done
+#	Handling Scope Node
+#	Handling IfElse Node
+subq	$4, %rsp
+subq	$4, %rsp
+movl	-148(%rbp), %esi
+movq	%esi, %r15
+cmpq	$0, %r15
+jz	L0
+#	Handling RetExp Node
+movq	$L2, %rax
+movq	%rbp, %rsp
+popq	%rbp
+popq	%rbx
+popq	%r12
+popq	%r13
+popq	%r14
+popq	%r15
+ret
+jmp	L1
+L0:
+#	Handling RetExp Node
+movq	$L3, %rax
+movq	%rbp, %rsp
+popq	%rbp
+popq	%rbx
+popq	%r12
+popq	%r13
+popq	%r14
+popq	%r15
+ret
+L1:
+
+.text
+.globl	bar
+.p2align 4
+bar:
+pushq	%r15
+pushq	%r14
+pushq	%r13
+pushq	%r12
+pushq	%rbx
+pushq	%rbp
+movq	%rsp, %rbp
+movdqa	%xmm0, %xmm10
+#	Placing Parameters on stack
+pushq	%rdi
+pushq	%rsi
+pushq	%rdx
+pushq	%rcx
+pushq	%r8
+pushq	%r9
+subq	$16, %rsp
+movdqu	%xmm10, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm1, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm2, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm3, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm4, (%rsp)
+subq	$16, %rsp
+movdqu	%xmm5, (%rsp)
+#	Done
 #	Handling Scope Node
 #	Handling Equ Node
-movl	$7, %reg
-movl	%reg, y(%rip)
+subq	$16, %rsp
+subq	$16, %rsp
+movdqu	-312(%rbp), %xmm1
+movdqu	-296(%rip), %xmm1
+pblendw	3, $L4, %xmm1
+movdqu	%xmm1, -296(%rip)
+subq	$16, %rsp
 #	Handling Equ Node
-movl	$5, %reg
-movl	%reg, x(%rip)
-#	Handling Equ Node
-movq	$x, %reg
-movq	%reg, px(%rip)
-#	Handling Equ Node
-movq	$L0, %reg
-movq	%reg, string(%rip)
-#	Handling Equ Node
-movdqu	z(%rip), %reg
-pblendw	4, $L1, %reg
-movdqu	%reg, z(%rip)
-
-.data
-q:	.long
+subq	$16, %rsp
+subq	$16, %rsp
+movdqu	-360(%rbp), %xmm2
+movdqu	-328(%rip), %xmm2
+#	Handling Deref Node
+movq	-296(%rip), %r15
+subq	$16, %rsp
+movdqu	-376(%rbp), %xmm3
+movdqu	(%r15), %xmm3
+pblendw	63, %xmm3, %xmm2
+movdqu	%xmm2, -328(%rip)
 #	Handling For Node
 #	Handling Equ Node
-movl	$0, %reg
-movl	%reg, i(%rip)
-L2:
+subq	$4, %rsp
+subq	$4, %rsp
+movl	-396(%rbp), %r8d
+movl	$0, %r8d
+movl	%r8d, -392(%rip)
+L5:
 #	Handling Lt Node
-movl	i(%rip), %reg
-cmpl	$45, %reg
+subq	$4, %rsp
+movl	-400(%rbp), %r9d
+movl	-392(%rip), %r9d
+cmpl	0(%rip), %r9d
 setlt	%reg
-movq	%reg, %r15
-cmpq	$0, %r15
-jz	L3
-#	Handling Scope Node
-#	Handling Equ Node
-#	Handling Add Node
-movl	x(%rip), %reg
-addl	$1, %reg
-movl	%reg, %reg
-movl	%reg, x(%rip)
-#	Handling Equ Node
-#	Handling Add Node
-movl	i(%rip), %reg
-addl	$1, %reg
-movl	%reg, %reg
-movl	%reg, i(%rip)
-jmp	L2
-L3:
-#	Handling Label Node
-label:
-#	Handling If Node
-#	Handling GtEqu Node
-movl	x(%rip), %reg
-cmpl	$0, %reg
-setgt   %reg
-movq	%reg, %r15
-cmpq	$0, %r15
-jz	L5
-#	Handling If Node
-#	Handling Lt Node
-movl	y(%rip), %reg
-cmpl	$4, %reg
-setlt	%reg
-movq	%reg, %r15
+movq	%r9d, %r15
 cmpq	$0, %r15
 jz	L6
-#	Handling IfElse Node
-#	Handling LogicalAnd Node
-#	Handling GtEqu Node
-movl	x(%rip), %reg
-cmpl	$0, %reg
-setgt   %reg
-movl	%reg, %reg
-#	Handling GtEqu Node
-movl	y(%rip), %reg
-cmpl	$0, %reg
-setgt   %reg
-andl	%reg, %reg
-cmpl	$0, %reg
-setne	%reg
-movq	%reg, %r15
-cmpq	$0, %r15
-jz	L9
-#	Handling RetExp Node
-movb	$3, %rax
-movq	%rbp, %rsp
-popq	%rbp
-popq	%rbx
-popq	%r12
-popq	%r13
-popq	%r14
-popq	%r15
-jmp	L10
-L9:
-#	Handling Goto Node
-jmp	label
-L10:
+#	Handling Equ Node
+subq	$16, %rsp
+subq	$16, %rsp
+movdqu	-420(%rbp), %xmm6
+movdqu	-328(%rip), %xmm6
+#	Handling Add Node
+subq	$16, %rsp
+movdqu	-436(%rbp), %xmm7
+movdqu	-328(%rip), %xmm7
+#	Handling Deref Node
+movq	-296(%rip), %r15
+subq	$16, %rsp
+movdqu	-452(%rbp), %xmm8
+movdqu	(%r15), %xmm8
+paddl	%xmm8, %xmm7
+pblendw	63, %xmm7, %xmm6
+movdqu	%xmm6, -328(%rip)
+#	Handling Equ Node
+subq	$4, %rsp
+#	Handling Add Node
+subq	$4, %rsp
+movl	-472(%rbp), %ebx
+movl	-392(%rip), %ebx
+addl	$1, %ebx
+subq	$4, %rsp
+movl	-476(%rbp), %edi
+movl	%ebx, %edi
+movl	%edi, -392(%rip)
+jmp	L5
 L6:
-L5:
-#	Handling Equ Node
-movdqu	q(%rip), %reg
+#	Handling RetExp Node
 #	Handling Add Node
 #	Handling Add Node
-#	Handling Deref Node
-movq	z(%rip), %r15
-movdqu	(%r15), %reg
-movdqa	%reg, %reg
-#	Handling Deref Node
-movq	$L11, %r15
-movb	(%r15), %reg
-paddl	%reg, %reg
-movdqa	%reg, %reg
-paddl	q(%rip), %reg
-pblendw	4, %reg, %reg
-movdqu	%reg, q(%rip)
-#	Handling Equ Node
-#	Handling Add Node
-movl	x(%rip), %reg
 #	Handling VecIndex Node
 #	Handling Deref Node
-movq	z(%rip), %r15
-movdqu	(%r15), %reg
-pextrl 3, %reg, %reg
-addl	%reg, %reg
-movl	%reg, %reg
-movl	%reg, x(%rip)
-#	Handling RetExp Node
-#	Handling Add Node
-movl	x(%rip), %reg
-addl	y(%rip), %reg
-movl	%reg, %rax
+movq	-296(%rip), %r15
+subq	$16, %rsp
+movdqu	%xmm1, -312(%rbp)
+movdqu	-480(%rbp), %xmm1
+movdqu	(%r15), %xmm1
+subq	$4, %rsp
+movl	-496(%rbp), %edx
+pextrl 0, %xmm1, %edx
+subq	$4, %rsp
+movl	-500(%rbp), %ecx
+movl	%edx, %ecx
+#	Handling VecIndex Node
+#	Handling Deref Node
+movq	-296(%rip), %r15
+movdqu	(%r15), %xmm1
+subq	$4, %rsp
+movl	%r8d, -396(%rbp)
+movl	-504(%rbp), %r8d
+pextrl 1, %xmm1, %r8d
+addl	%r8d, %ecx
+subq	$4, %rsp
+movl	%r9d, -400(%rbp)
+movl	-508(%rbp), %r9d
+movl	%ecx, %r9d
+#	Handling VecIndex Node
+#	Handling Deref Node
+movq	-296(%rip), %r15
+movdqu	(%r15), %xmm1
+subq	$4, %rsp
+movl	-512(%rbp), %eax
+pextrl 2, %xmm1, %eax
+addl	%eax, %r9d
+movl	%r9d, %eax
 movq	%rbp, %rsp
 popq	%rbp
 popq	%rbx
@@ -153,9 +209,10 @@ popq	%r12
 popq	%r13
 popq	%r14
 popq	%r15
+ret
 
 
 .data
-L0: .asciz "funny"
-L1: .(null) 4, 3, 2, 1
-L11: .(null) 1, 1, 1, 1
+L2: .asciz "hello"
+L3: .asciz "world"
+L4: .(null) 1, 1, 1

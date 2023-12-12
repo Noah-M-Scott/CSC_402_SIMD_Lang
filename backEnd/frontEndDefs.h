@@ -95,5 +95,6 @@ struct symbolEntry{
 	struct symbolEntry* baseStore;
 	struct symbolEntry* next;
 	struct genericNode* innerScope;		//the node the specifies the size / internal scope
+	long paramIndex;
 	long stringLitBool;			//if the immediate is a string literal or not
 };

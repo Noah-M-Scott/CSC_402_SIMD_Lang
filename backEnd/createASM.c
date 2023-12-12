@@ -11,6 +11,7 @@ long stackOffsetCounter = 0;
 long scopeCounter = 0;
 int lastBaseTypeWas = 0;
 
+long lastWasVec = 0;
 long loopLabelStackTop[512];
 long loopLabelStackExit[512];
 long loopLabelPointerTop = 0;
@@ -19,11 +20,31 @@ long loopLabelPointerExit = 0;
 //reserve r12, r13, r14, r15 as helper registers
 //reserve xmm0 as a helper register
 
+//is the trailing type in a int register (this counts pointers)
+long isInIntReg(struct genericNode* in){
+    for(int i = 0; i < 32; i++)
+        if( in->modString[i] == VECTOR_MOD) return 0;
+
+	for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX || 
+            in->modString[i] == BYTE_BASE || 
+            in->modString[i] == WORD_BASE || 
+            in->modString[i] == LONG_BASE || 
+            in->modString[i] == QUAD_BASE ){
+			return 1;
+        }
+    }
+    
+    return 0;
+}
+
 //for indexing on type
 int enumType(struct genericNode* in){
+    for(int i = 0; i < 32; i++)
+        if( in->modString[i] == VECTOR_MOD) return 4;
+
     for(int i = 31; i >= 0; i--){
 		if( in->modString[i] == POINTER_POSTFIX) return 3;
-        if( in->modString[i] == VECTOR_MOD) return 4;
 		if( in->modString[i] == BYTE_BASE) return 0;
 		if( in->modString[i] == WORD_BASE) return 1;
         if( in->modString[i] == LONG_BASE) return 2;
@@ -37,9 +58,11 @@ int enumType(struct genericNode* in){
 
 //returns the size of a type
 int getTypeSizeInt(struct genericNode* in){
+    for(int i = 0; i < 32; i++)
+        if( in->modString[i] == VECTOR_MOD) return 16;
+
     for(int i = 31; i >= 0; i--){
 		if( in->modString[i] == POINTER_POSTFIX) return 8;
-        if( in->modString[i] == VECTOR_MOD) return 16;
 		if( in->modString[i] == BYTE_BASE) return 1;
 		if( in->modString[i] == WORD_BASE) return 2;
         if( in->modString[i] == LONG_BASE) return 4;
@@ -49,120 +72,6 @@ int getTypeSizeInt(struct genericNode* in){
     }
     
     return 0;
-}
-
-struct genericNode* registerTracker[10];
-struct genericNode* registerTrackerXmm[10];
-char registerNames[5][10][8] = {
-    {"%dil",   "%sil",  "%dl",   "%cl",   "%r8b",  "%r9b",  "%al",   "%r10b", "%r11b", "%bl"},
-    {"%di",    "%si",   "%dx",   "%cx",   "%r8w",  "%r9w",  "%ax",   "%r10w", "%r11w", "%bx"},
-    {"%edi",   "%esi",  "%edx",  "%ecx",  "%r8d",  "%r9d",  "%eax",  "%r10d", "%r11d", "%ebx"},
-    {"%rdi",   "%rsi",  "%rdx",  "%rcx",  "%r8",   "%r9",   "%rax",  "%r10",  "%r11",  "%rbx"},
-    {"%xmm10", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7", "%xmm8", "%xmm9"}
-};
-
-void resetRegs(){
-    for(int i = 0; i < 5; i++)
-        for(int j = 0; j < 10; j++){
-            registerTracker[i] = NULL;
-            registerTrackerXmm[i] = NULL;
-        }
-}
-
-struct stackPairingNode{
-    long offset;
-    struct genericNode* addr;
-    struct stackPairingNode* next;
-};
-
-struct stackPairingNode* stackPairingHead = NULL;
-
-//keeps a list of registers for use, what address a currently using them
-//0 first check if the addr already has a register checked out, return that if so
-//1 if not check if the addr is in the list of mappings, store a register, than load addr's, return
-//1.5 make sure to check if the addr is a parameter too, those have dedicated mappings
-//1.6 if the mapping is null, go ahead and just asign the register
-//2 if not add addr to the list of mappings, making room for it, then goto above
-char* getReg(struct genericNode* me, struct genericNode* in){
-    static int registerIndex = 0;
-    for(int i = 0; i < 10; i++)
-        if(registerTracker[i] == in || registerTrackerXmm[i] == in)
-            return registerNames[enumType(in)][i];
-
-SWAP_REGISTER:
-
-    registerIndex = (registerIndex + 1) % 10;
-    return "%reg";
-
-
-    goto SWAP_REGISTER;
-}
-
-char* getByteReg(struct genericNode* me, struct genericNode* mine){
-    return "%reg";
-}
-
-
-
-char* getRaxSize(struct genericNode* me){
-    return "%rax";
-}
-
-//get the name of the type's size
-char* getTypeSizeNameFromInt(int in){
-	if( in == POINTER_POSTFIX) return "quad";
-	if( in == BYTE_BASE) return "byte";
-	if( in == WORD_BASE) return "word";
-    if( in == LONG_BASE) return "long";
-    if( in == QUAD_BASE) return "quad";
-    if( in == SINGLE_BASE) return "long";
-    if( in == DOUBLE_BASE) return "quad";
-}
-
-//delays write untill the end of the file
-char delayBuffer[4098] = {0};
-void delayWriteBuffer(char* in){
-    strcat(delayBuffer, in);
-}
-
-//turns local variables into offset(%rbp), or if it's a global variable name(%rip)
-char* getSymbol(struct genericNode* in){
-    static char tempBuffer[256];
-    if(strcmp(((struct symbolEntry*)(in->children[0]))->name, "0imm") == 0){
-
-        if(strncmp(((struct symbolEntry*)(in->children[0]))->constValue, "lit", 3) == 0){
-            long tempLabel = labelCounter++;
-            
-            sprintf(tempBuffer, "L%ld: .%s %s\n", tempLabel, getTypeSizeNameFromInt(lastBaseTypeWas), 
-            (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
-            
-            delayWriteBuffer(tempBuffer);
-            sprintf(tempBuffer, "$L%ld", tempLabel);
-            return tempBuffer;
-        }
-
-        if(strncmp(((struct symbolEntry*)(in->children[0]))->constValue, "str", 3) == 0){
-            long tempLabel = labelCounter++;
-            
-            sprintf(tempBuffer, "L%ld: .asciz %s\n", tempLabel, 
-            (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
-            
-            delayWriteBuffer(tempBuffer);
-            sprintf(tempBuffer, "$L%ld", tempLabel);
-            return tempBuffer;
-        }
-
-        tempBuffer[0] = '$';
-        strcpy(&(tempBuffer[1]), ((struct symbolEntry*)(in->children[0]))->constValue);
-
-    }else{
-        if(((struct symbolEntry*)(in->children[0]))->name[0] == '$')
-            sprintf(tempBuffer, "%s", ((struct symbolEntry*)(in->children[0]))->name);
-        else
-            sprintf(tempBuffer, "%s(%%rip)", ((struct symbolEntry*)(in->children[0]))->name);
-    }
-
-    return tempBuffer;
 }
 
 //pull the constant number from in
@@ -208,21 +117,6 @@ int elementCount(struct genericNode* in){
         if( in->modString[i] == QUAD_BASE) return 2;
         if( in->modString[i] == SINGLE_BASE) return 4;
         if( in->modString[i] == DOUBLE_BASE) return 2;
-    }
-    
-    return 0;
-}
-
-//get the type prefix/trailing type
-char getType(struct genericNode* in){
-    for(int i = 31; i >= 0; i--){
-		if( in->modString[i] == POINTER_POSTFIX) return 'q';
-		if( in->modString[i] == BYTE_BASE) return 'b';
-		if( in->modString[i] == WORD_BASE) return 'w';
-        if( in->modString[i] == LONG_BASE) return 'l';
-        if( in->modString[i] == QUAD_BASE) return 'q';
-        if( in->modString[i] == SINGLE_BASE) return 's';
-        if( in->modString[i] == DOUBLE_BASE) return 'd';
     }
     
     return 0;
@@ -299,9 +193,268 @@ long isVoid(struct genericNode* in){
     return 0;
 }
 
+//get the type prefix/trailing type
+char getType(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 'q';
+		if( in->modString[i] == BYTE_BASE) return 'b';
+		if( in->modString[i] == WORD_BASE) return 'w';
+        if( in->modString[i] == LONG_BASE) return 'l';
+        if( in->modString[i] == QUAD_BASE) return 'q';
+        if( in->modString[i] == SINGLE_BASE) return 's';
+        if( in->modString[i] == DOUBLE_BASE) return 'd';
+    }
+    
+    return 0;
+}
+
+struct genericNode* registerTracker[10];
+struct genericNode* registerTrackerXmm[10];
+char registerNames[5][10][8] = {
+    {"%dil",   "%sil",  "%dl",   "%cl",   "%r8b",  "%r9b",  "%al",   "%r10b", "%r11b", "%bl"},
+    {"%di",    "%si",   "%dx",   "%cx",   "%r8w",  "%r9w",  "%ax",   "%r10w", "%r11w", "%bx"},
+    {"%edi",   "%esi",  "%edx",  "%ecx",  "%r8d",  "%r9d",  "%eax",  "%r10d", "%r11d", "%ebx"},
+    {"%rdi",   "%rsi",  "%rdx",  "%rcx",  "%r8",   "%r9",   "%rax",  "%r10",  "%r11",  "%rbx"},
+    {"%xmm10", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7", "%xmm8", "%xmm9"}
+};
+
+struct stackPairingNode{
+    long offset;
+    struct genericNode* addr;
+    struct stackPairingNode* next;
+};
+
+struct stackSymbolPairingNode{
+    long offset;
+    struct symbolEntry* addr;
+    struct stackSymbolPairingNode* next;
+};
+
+struct stackPairingNode* stackPairingHead = NULL;
+struct stackSymbolPairingNode* stackSymbolPairingHead = NULL;
+int registerIndex = 0;
+
+void resetRegs(){
+    for(int i = 0; i < 5; i++)
+        for(int j = 0; j < 10; j++){
+            registerTracker[i] = NULL;
+            registerTrackerXmm[i] = NULL;
+        }
+
+    registerIndex = 0;
+    
+    {
+        struct stackPairingNode* current = stackPairingHead;
+        while(current != NULL){
+            struct stackPairingNode* temp = current->next;
+            free(current);
+            current = temp;
+        }
+        stackPairingHead = NULL;
+    }
+
+    struct stackSymbolPairingNode* current = stackSymbolPairingHead;
+    while(current != NULL){
+        struct stackSymbolPairingNode* temp = current->next;
+        free(current);
+        current = temp;
+    }
+    stackSymbolPairingHead = NULL;
+}
+
+//store the reg we're swaping out
+void storeOldReg(int index, int mode){
+    struct stackPairingNode* current = stackPairingHead;
+    if(mode)
+        while(current != NULL){ //xmm
+            if(current->addr == registerTrackerXmm[index]){
+                fprintf(outFile, "movdqu\t%s, %ld(%%rbp)\n", registerNames[4][index], -current->offset);
+                return;
+            }
+            current = current->next;
+        }
+    else
+        while(current != NULL){ //integer
+            if(current->addr == registerTracker[index]){
+                fprintf(outFile, "mov%c\t%s, %ld(%%rbp)\n", 
+                getType(current->addr), 
+                registerNames[enumType(current->addr)][index], 
+                -current->offset);
+
+                return;
+            }
+            current = current->next;
+        }
+}
+
+//keeps a list of registers for use, what address a currently using them
+//0 first check if the addr already has a register checked out, return that if so
+//1 if not check if the addr is in the list of mappings, store a register, than load addr's, return
+//1.5 if the mapping is null, go ahead and just asign the register
+//2 if not add addr to the list of mappings, making room for it, then goto above
+char* getReg(struct genericNode* me, struct genericNode* in){
+    for(int i = 0; i < 10; i++)
+        if(registerTracker[i] == in || registerTrackerXmm[i] == in)
+            return registerNames[enumType(in)][i];
+
+SWAP_REGISTER:
+    struct stackPairingNode* current = stackPairingHead;
+    while(current != NULL){
+        if(current->addr == in){
+            registerIndex = (registerIndex + 1) % 10;
+            if(isInIntReg(in)){
+                if(registerTracker[registerIndex] != NULL)
+                    storeOldReg(registerIndex, 0);
+
+                fprintf(outFile, "mov%c\t%ld(%%rbp), %s\n", getType(in), -current->offset, registerNames[enumType(in)][registerIndex]);
+                registerTracker[registerIndex] = in;
+            }else{
+                if(registerTrackerXmm[registerIndex] != NULL)
+                    storeOldReg(registerIndex, 1);
+
+                fprintf(outFile, "movdqu\t%ld(%%rbp), %s\n", -current->offset, registerNames[4][registerIndex]);
+                registerTrackerXmm[registerIndex] = in;
+            }
+
+            return registerNames[enumType(in)][registerIndex];
+        }
+        current = current->next;
+    }
+
+    //make space on stack
+    current = stackPairingHead;
+    if(current == NULL){
+        current = malloc(sizeof(struct stackPairingNode));
+        current->offset = stackOffsetCounter;
+        current->addr = in;
+        current->next = NULL;
+        stackOffsetCounter += getTypeSizeInt(in);
+        fprintf(outFile, "subq\t$%d, %%rsp\n", getTypeSizeInt(in));
+        stackPairingHead = current;
+    }else
+    while(1){
+        if(current->next == NULL){
+            current->next = malloc(sizeof(struct stackPairingNode));
+            current->next->offset = stackOffsetCounter;
+            current->next->addr = in;
+            current->next->next = NULL;
+            stackOffsetCounter += getTypeSizeInt(in);
+            fprintf(outFile, "subq\t$%d, %%rsp\n", getTypeSizeInt(in));
+            break;
+        }
+        
+        current = current->next;
+    }
+
+    goto SWAP_REGISTER;
+}
+
+char* getByteReg(struct genericNode* me, struct genericNode* mine){
+    return "%reg";
+}
+
+char* getRaxSize(struct genericNode* in){
+    static char raxSizes[4][5] = {"%al", "%ax", "%eax", "%rax"};
+    return raxSizes[enumType(in)];
+}
+
+//get the name of the type's size
+char* getTypeSizeNameFromInt(int in){
+	if( in == POINTER_POSTFIX) return "quad";
+	if( in == BYTE_BASE) return "byte";
+	if( in == WORD_BASE) return "word";
+    if( in == LONG_BASE) return "long";
+    if( in == QUAD_BASE) return "quad";
+    if( in == SINGLE_BASE) return "long";
+    if( in == DOUBLE_BASE) return "quad";
+}
+
+//delays write untill the end of the file
+char delayBuffer[4098] = {0};
+void delayWriteBuffer(char* in){
+    strcat(delayBuffer, in);
+}
+
+//turns local variables into offset(%rbp), or if it's a global variable name(%rip)
+char* getSymbol(struct genericNode* in){
+
+    int paramOffsets[12] = {0, 8, 16, 24, 32, 40};
+    int paramOffsetsXmm[12] = {48, 64, 80, 96, 112, 128};
+
+    static char tempBuffer[256];
+    if(((struct symbolEntry*)(in->children[0]))->paramIndex != -1){
+        if(isVec(in))
+            sprintf(tempBuffer, "%d(%%rip)", -paramOffsetsXmm[((struct symbolEntry*)(in->children[0]))->paramIndex]);
+        else
+            sprintf(tempBuffer, "%d(%%rip)", -paramOffsets[((struct symbolEntry*)(in->children[0]))->paramIndex]);
+        return tempBuffer;
+    }
+
+    if(strcmp(((struct symbolEntry*)(in->children[0]))->name, "0imm") == 0){
+
+        if(strncmp(((struct symbolEntry*)(in->children[0]))->constValue, "lit", 3) == 0){
+            long tempLabel = labelCounter++;
+            
+            sprintf(tempBuffer, "L%ld: .%s %s\n", tempLabel, getTypeSizeNameFromInt(lastBaseTypeWas), 
+            (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
+            
+            delayWriteBuffer(tempBuffer);
+            if(lastWasVec)
+                sprintf(tempBuffer, "L%ld(%%rip)", tempLabel);
+            else
+                sprintf(tempBuffer, "$L%ld", tempLabel);
+            
+            return tempBuffer;
+        }
+
+        if(strncmp(((struct symbolEntry*)(in->children[0]))->constValue, "str", 3) == 0){
+            long tempLabel = labelCounter++;
+            
+            sprintf(tempBuffer, "L%ld: .asciz %s\n", tempLabel, 
+            (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
+            
+            delayWriteBuffer(tempBuffer);
+            sprintf(tempBuffer, "$L%ld", tempLabel);
+            return tempBuffer;
+        }
+
+        tempBuffer[0] = '$';
+        strcpy(&(tempBuffer[1]), ((struct symbolEntry*)(in->children[0]))->constValue);
+
+    }else{
+
+        struct stackSymbolPairingNode* current = stackSymbolPairingHead; //get local variable
+        while(current != NULL){
+            if(current->addr == (struct symbolEntry*)(in->children[0])){
+                sprintf(tempBuffer, "%ld(%%rip)", -current->offset);
+                return tempBuffer;
+            }
+
+            current = current->next;
+        }
+
+        if(((struct symbolEntry*)(in->children[0]))->name[0] == '$')
+            sprintf(tempBuffer, "%s", ((struct symbolEntry*)(in->children[0]))->name);
+        else
+            sprintf(tempBuffer, "%s(%%rip)", ((struct symbolEntry*)(in->children[0]))->name);
+    }
+
+    return tempBuffer;
+}
+
+
 //make pblendw mask to match the length of the vector
-long createSizeMask(struct genericNode* in){
-    return 4;
+long createSizeMask(struct genericNode* in){    
+    long mask2[2] = {0b00001111, 0b11111111};
+    long mask4[4] = {0b00000011, 0b00001111, 0b00111111, 0b11111111};
+    long mask8[8] = {0b00000001, 0b00000011, 0b00000111, 0b00001111, 0b00011111, 0b00111111, 0b01111111, 0b11111111};
+
+    switch(elementCount(in)){
+        case(2): return mask2[isVec(in) - 1];
+        case(4): return mask4[isVec(in) - 1];
+        case(8): return mask8[isVec(in) - 1];
+        default: return 0;
+    }
 }
 
 void pushParameters(){
@@ -349,11 +502,40 @@ void symbolNode(struct genericNode* in){ //if a symbol isn't handled, it's a out
             pushParameters();
             resetRegs();
             generalNode(((struct symbolEntry*)(in->children[0]))->innerScope);
+            resetRegs();
         }else
             return; //don't write function prototypes
-    }else{   //print base variable
+    }else{   
+        if(scopeCounter < 1){
+        //print base variable
         fprintf(outFile, "\n.data\n");
         fprintf(outFile, "%s:\t.%s\n", ((struct symbolEntry*)(in->children[0]))->name, getTypeSizeName(in));
+        }else{
+        //make space on stack
+        struct stackSymbolPairingNode* current = stackSymbolPairingHead;
+        if(current == NULL){
+            current = malloc(sizeof(struct stackSymbolPairingNode));
+            current->offset = stackOffsetCounter;
+            current->addr = ((struct symbolEntry*)(in->children[0]));
+            current->next = NULL;
+            stackOffsetCounter += getTypeSizeInt(in);
+            fprintf(outFile, "subq\t$%d, %%rsp\n", getTypeSizeInt(in));
+            stackSymbolPairingHead = current;
+        }else
+        while(1){
+            if(current->next == NULL){
+                current->next = malloc(sizeof(struct stackSymbolPairingNode));
+                current->next->offset = stackOffsetCounter;
+                current->next->addr = ((struct symbolEntry*)(in->children[0]));
+                current->next->next = NULL;
+                stackOffsetCounter += getTypeSizeInt(in);
+                fprintf(outFile, "subq\t$%d, %%rsp\n", getTypeSizeInt(in));
+                break;
+            }
+        
+            current = current->next;
+        }
+        }
     }
 
 }
@@ -532,6 +714,17 @@ void equNode(struct genericNode* in){
         getTypeSizeName(in), 
         ((struct symbolEntry*)(in->children[1]->children[0]))->constValue);
         return;
+    }else{
+        struct stackSymbolPairingNode* current = stackSymbolPairingHead; //see if space for the local variable has alread been reserved
+        while(current != NULL){
+            if(current->addr == (struct symbolEntry*)(in->children[0]->children[0])){
+                break; //yes
+            }
+
+            current = current->next;
+        }
+        //no
+        generalNode(in->children[0]); //make it
     }
 
     long vectorSize = isVec(in);
@@ -2080,7 +2273,8 @@ void callNode(struct genericNode* in){
 }
 
 void permuteNode(struct genericNode* in){
-
+    fprintf(stderr, "ERR: Sorry, but permute is not yet implemented\n");
+    exit(1);
 }
 
 void callParamNode(struct genericNode* in){
@@ -2176,6 +2370,7 @@ void callParamNode(struct genericNode* in){
 void returnNode(struct genericNode* in){
     fprintf(outFile, "#\tHandling Return Node\n");
     fprintf(outFile, "movq\t%%rbp, %%rsp\npopq\t%%rbp\npopq\t%%rbx\npopq\t%%r12\npopq\t%%r13\npopq\t%%r14\npopq\t%%r15\n");
+    fprintf(outFile, "ret\n");
 }
 
 
@@ -2190,7 +2385,7 @@ void returnExpNode(struct genericNode* in){
     }
     
     fprintf(outFile, "movq\t%%rbp, %%rsp\npopq\t%%rbp\npopq\t%%rbx\npopq\t%%r12\npopq\t%%r13\npopq\t%%r14\npopq\t%%r15\n");
-    
+    fprintf(outFile, "ret\n");    
 }
 
 

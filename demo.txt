@@ -1,33 +1,19 @@
-long buzz = 4;
-
-long ( long y ) main;
-long ( long y ) main {
-
-    y = 7;
-
-    long x = 5;
-    [long] px = &x;
-
-    [byte] string = "funny";
-
-    [long<4>] z = \4, 3, 2, 1\;
-    long<4> q;
-
-    for(int i = 0; i < 45; i = i + 1;){
-        x = x + 1;
-    }
-
-label:;
-    if(x > 0)
-    if(y < 4)
-    if(x > 0 && y > 0)
-        return 3;
+[byte] (long mode) hello {
+    if(mode)
+        return "hello";
     else
-        goto label;
+        return "world";
+}
 
-    q = [z] + [ \1, 1, 1, 1\ ] + q;
+long (long count) bar {
 
-    x = x + [z][3];
+    [long<3>] z = \ 1, 1, 1 \;
 
-    return x + y;
+    long<3> a;
+    a = [z];
+
+    for(int i = 0; i < count; i = i + 1;)
+        a = a + [z];
+
+    return [z][0] + [z][1] + [z][2];
 }

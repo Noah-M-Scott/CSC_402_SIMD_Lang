@@ -795,6 +795,8 @@ parameter_list:
 		memcpy(temp->modString, $2, 32);
 		strcpy(temp->name, $3);
 		registerSymbol(temp);
+		paramIndex = 0;
+		temp->paramIndex = paramIndex++;
 		$$ = $2;						// don't pop here as this typename will be merged repeatedly, then merged with the final one
  	}
 
@@ -803,6 +805,7 @@ parameter_list:
 		memcpy(temp->modString, $4, 32);
 		strcpy(temp->name, $5);
 		registerSymbol(temp);
+		temp->paramIndex = paramIndex++;
 		copyAndPopTypeIndex($1, $4);
 		free($4);
 		$$ = $1;
@@ -1000,7 +1003,7 @@ struct genericNode** frontEnd(char *filename){
 	yyin = stdin;
 	GLOBAL_LINE_NUMBER = 0;
 
-	yydebug = 1;
+	yydebug = 0;
 	
 	initNodes();
 

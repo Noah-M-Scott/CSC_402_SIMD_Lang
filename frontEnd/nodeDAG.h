@@ -97,13 +97,6 @@ enum {
 */
 
 
-/*
- *	BIG IMPORTANT NOTE: IF YOUR GETTING ERRORS, ENSURE THAT STRUCT PACKING IS OFF ON COMPILE; THIS USES SOME PSEUDO POLYMORPHISM
- *	ON "timestamp"
- *
- *	THOUGH IT SHOULD BE FINE EVEN IF IT'S ON
- */
-
 struct genericNode{
 	long timestamp;
 	char modString[32];
@@ -122,10 +115,11 @@ struct symbolEntry{
 	struct symbolEntry* baseStore;
 	struct symbolEntry* next;
 	struct genericNode* innerScope;		//the node the specifies the size / internal scope
+	long paramIndex;
 	long stringLitBool;			//if the immediate is a string literal or not
 };
 
-
+unsigned long paramIndex;
 unsigned long inStructBool;
 unsigned long inFunctionParamBool;
 unsigned long poisonRefBool;
@@ -843,6 +837,8 @@ int maxForType(char type){
 
 // take in an unregistered symbol, register it, produce a unregistered node; delay errs on goto labels
 struct genericNode* registerSymbol(struct symbolEntry* in){
+
+	in->paramIndex = -1;
 
 	//see if it's an immediate
 	long immediateCheck = 0;
