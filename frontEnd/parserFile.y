@@ -838,11 +838,15 @@ statement:
 		clobberStores();																//clober all symbol stores
 		struct genericNode* temp = malloc(sizeof(struct genericNode) + sizeof(struct genericNode*) * 2);
 		temp->type = EQU_TYPE;
+		for(int i = 31; i >= 0; i--)
+			if($2->modString[i] != NONE_MOD)
+				$2->modString[i + 1] = POINTER_POSTFIX; //make it a pointer
+
 		memcpy(temp->modString, $2->modString, 32);
 		temp->childCount = 2;
 		temp->children[0] = $2;					//this is a raw store
 		temp->children[1] = $5;
-		compareTypes($2, $5, temp->modString);	//compare and check types
+		//compareTypes($2, $5, temp->modString);	//compare and check types
 		$$ = registerNode(temp);
 	}
 

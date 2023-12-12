@@ -600,12 +600,15 @@ void forNode(struct genericNode* in){
     if(isInt(in->children[1])){
         fprintf(outFile, "xorq\t%%r15, %%r15\n");
 
-        fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[1]), getReg(in, in->children[1]), getR15Size(in->children[1]));
+        if(in->children[1]->type == SYMBOL_TYPE)
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[1]), getSymbol(in->children[1]), getR15Size(in->children[1]));
+        else
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[1]), getReg(in, in->children[1]), getR15Size(in->children[1]));
     }else
         fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[1])); 
 
     fprintf(outFile, "cmpq\t$0, %%r15\n");
-    fprintf(outFile, "jz\tL%ld\n", exitLabel);
+    fprintf(outFile, "je\tL%ld\n", exitLabel);
 
     generalNode(in->children[3]);   //body of the loop
 
@@ -635,12 +638,16 @@ void whileNode(struct genericNode* in){
 
     if(isInt(in->children[0])){
         fprintf(outFile, "xorq\t%%r15, %%r15\n");
-        fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getR15Size(in->children[0]));
+
+        if(in->children[0]->type == SYMBOL_TYPE)
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getSymbol(in->children[0]), getR15Size(in->children[0]));
+        else
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getR15Size(in->children[0]));
     }else
-        fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0])); 
+        fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0]));  
 
     fprintf(outFile, "cmpq\t$0, %%r15\n");
-    fprintf(outFile, "jz\tL%ld\n", exitLabel);
+    fprintf(outFile, "je\tL%ld\n", exitLabel);
 
     generalNode(in->children[1]);   //body
 
@@ -680,7 +687,7 @@ void ifNode(struct genericNode* in){
         fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0])); 
 
     fprintf(outFile, "cmpq\t$0, %%r15\n");
-    fprintf(outFile, "jz\tL%ld\n", tempLabel);
+    fprintf(outFile, "je\tL%ld\n", tempLabel);
 
     generalNode(in->children[1]);   //body
 
@@ -788,10 +795,10 @@ void equNode(struct genericNode* in){
         }
 
         if(in->children[1]->type == SYMBOL_TYPE){
-            fprintf(outFile, "pblendw\t%ld, %s, %s\n", createSizeMask(in), getSymbol(in->children[1]), getReg(in, in));
+            fprintf(outFile, "pblendw\t$%ld, %s, %s\n", createSizeMask(in), getSymbol(in->children[1]), getReg(in, in));
         }else{
             generalNode(in->children[1]);
-            fprintf(outFile, "pblendw\t%ld, %s, %s\n", createSizeMask(in), getReg(in, in->children[1]), getReg(in, in));
+            fprintf(outFile, "pblendw\t$%ld, %s, %s\n", createSizeMask(in), getReg(in, in->children[1]), getReg(in, in));
         }
 
         if(in->children[0]->type == SYMBOL_TYPE){
