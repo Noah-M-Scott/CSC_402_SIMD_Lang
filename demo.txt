@@ -1,9 +1,12 @@
+long buzz = 4;
+
 long ( long y ) main;
 long ( long y ) main {
 
     y = 7;
 
     long x = 5;
+    [long] px = &x;
 
     [long<4>] z = \4, 3, 2, 1\;
     long<4> q;
@@ -12,12 +15,13 @@ long ( long y ) main {
         x = x + 1;
     }
 
+label:;
     if(x > 0)
     if(y < 4)
     if(x > 0 && y > 0)
         return 3;
     else
-        return 2;
+        goto label;
 
     q = [z] + [ \1, 1, 1, 1\ ] + q;
 

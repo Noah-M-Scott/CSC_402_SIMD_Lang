@@ -639,9 +639,14 @@ variable_declaration:
 		$$ = registerNode(registerSymbol(temp));						//create the symbol, pass back a reference
 	}
 
-	| type_name IDENT EQUALSIGN_OP constant SEMICOLON_OP {
+	| type_name IDENT EQUALSIGN_OP expression SEMICOLON_OP {
 		closeFalseScope(); 												//close the previous false scope from typename
 		struct symbolEntry* temp = malloc(sizeof(struct symbolEntry));	//create a new symbol
+		if(currentScopeCounter < 1)
+		if($4->type != SYMBOL_TYPE){
+			fprintf(stderr, "ERR: cannot use EQU in a zero scope, LINE %ld\n", GLOBAL_LINE_NUMBER);
+			exit(1);
+		}
 
 		memcpy(temp->modString, $1, 32);								//set its type
 		memcpy(temp->name, $2, 128);									//set its name
@@ -911,7 +916,9 @@ statement:
 		temp->modString[0] = LABEL_BASE;								//..as label
 		memcpy(temp->name, $1, 128);									//set its name
 		temp->innerScope = NULL;										//no inner scope (isn't a function)
-		$$ = appendAChild(registerNode(registerSymbol(temp)), $3); 
+		struct genericNode* temp2 = registerNode(registerSymbol(temp));
+		temp2->type = LABEL_TYPE;
+		$$ = appendAChild(temp2, $3); 
 	}
 
 	| GOTO_OP IDENT SEMICOLON_OP	{ 
