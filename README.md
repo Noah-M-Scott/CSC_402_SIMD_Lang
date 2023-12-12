@@ -20,3 +20,5 @@ Overall, I feel that I ultimatly ran into a time crunch, and it's much
 less pretty/functional than I wanted it to be.
 But I feel that the class still met it's goals: we researched SIMD implementations,
 and I learned how to write a compiler.
+
+I will likely come back within the next few months and greatly improve the functionality + readability.
