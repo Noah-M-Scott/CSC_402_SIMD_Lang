@@ -147,6 +147,21 @@ char getTypeInt(struct genericNode* in){
     return 0;
 }
 
+//same as above but for intel's long menomic
+char getTypeIntIntel(struct genericNode* in){
+    for(int i = 31; i >= 0; i--){
+		if( in->modString[i] == POINTER_POSTFIX) return 'q';
+		if( in->modString[i] == BYTE_BASE) return 'b';
+		if( in->modString[i] == WORD_BASE) return 'w';
+        if( in->modString[i] == LONG_BASE) return 'd';
+        if( in->modString[i] == QUAD_BASE) return 'q';
+        if( in->modString[i] == SINGLE_BASE) return 'd';
+        if( in->modString[i] == DOUBLE_BASE) return 'q';
+    }
+    
+    return 0;
+}
+
 //is the trailing type a int (this counts pointers)
 long isInt(struct genericNode* in){
 	for(int i = 31; i >= 0; i--)
@@ -185,10 +200,15 @@ long isFloat(struct genericNode* in){
 //is the trailing type vector, returns size
 long isVec(struct genericNode* in){
 
-	for(int i = 31; i >= 0; i--)
+	for(int i = 31; i >= 0; i--){
+        if(in->modString[i] == POINTER_POSTFIX){
+			return 0;
+	    }
+
 		if(in->modString[i] == VECTOR_MOD){
 			return -(in->modString[i + 1]); //flip the sign, as the length is stored negative
 	    }
+    }
     
     return 0;
 }
@@ -359,12 +379,8 @@ SWAP_REGISTER:
     goto SWAP_REGISTER;
 }
 
-char* getByteReg(struct genericNode* me, struct genericNode* mine){
-    return "%reg";
-}
-
 char* getRaxSize(struct genericNode* in){
-    static char raxSizes[4][5] = {"%al", "%ax", "%eax", "%rax"};
+    static char raxSizes[5][5] = {"%al", "%ax", "%eax", "%rax", "%xmm0"};
     return raxSizes[enumType(in)];
 }
 
@@ -393,6 +409,7 @@ void delayWriteBuffer(char* in){
     strcat(delayBuffer, in);
 }
 
+long inStore = 0;
 //turns local variables into offset(%rbp), or if it's a global variable name(%rip)
 char* getSymbol(struct genericNode* in){
 
@@ -401,9 +418,10 @@ char* getSymbol(struct genericNode* in){
 
     static char tempBuffer[256];
     if(((struct symbolEntry*)(in->children[0]))->paramIndex != -1){
-        if(isVec(in))
-            sprintf(tempBuffer, "%d(%%rbp)", -paramOffsetsXmm[((struct symbolEntry*)(in->children[0]))->paramIndex] - 8);
-        else
+        if(isVec(in) && !inStore){
+            fprintf(outFile, "movdqu\t%d(%%rbp), %%xmm15\n", -paramOffsetsXmm[((struct symbolEntry*)(in->children[0]))->paramIndex] - 8);
+            sprintf(tempBuffer, "%%xmm15");
+        }else
             sprintf(tempBuffer, "%d(%%rbp)", -paramOffsets[((struct symbolEntry*)(in->children[0]))->paramIndex] - 8);
         return tempBuffer;
     }
@@ -417,12 +435,10 @@ char* getSymbol(struct genericNode* in){
             (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
             
             delayWriteBuffer(tempBuffer);
-            if(lastWasVec)
-                sprintf(tempBuffer, "L%ld(%%rip)", tempLabel);
-            else{
-                fprintf(outFile, "leaq\tL%ld(%%rip), %%r14\n", tempLabel);
-                sprintf(tempBuffer, "%%r14");
-            }
+            
+            fprintf(outFile, "leaq\tL%ld(%%rip), %%r14\n", tempLabel);
+            sprintf(tempBuffer, "%%r14");
+            
 
             return tempBuffer;
         }
@@ -447,7 +463,13 @@ char* getSymbol(struct genericNode* in){
         struct stackSymbolPairingNode* current = stackSymbolPairingHead; //get local variable
         while(current != NULL){
             if(current->addr == (struct symbolEntry*)(in->children[0])){
-                sprintf(tempBuffer, "%ld(%%rip)", -current->offset);
+
+                if(isVec(in) && !inStore){
+                    fprintf(outFile, "movdqu\t%ld(%%rbp), %%xmm15\n",  -current->offset);
+                    sprintf(tempBuffer, "%%xmm15");
+                }else   
+                    sprintf(tempBuffer, "%ld(%%rbp)", -current->offset);
+                
                 return tempBuffer;
             }
 
@@ -802,8 +824,10 @@ void equNode(struct genericNode* in){
         }
 
         if(in->children[0]->type == SYMBOL_TYPE){
+            inStore = 1;
             fprintf(outFile, "movdqu\t%s, %s\n", getReg(in, in), getSymbol(in->children[0]));
-        }else{    
+            inStore = 0;
+        }else{
             generalNode(in->children[0]);
             fprintf(outFile, "movdqu\t%s, %s\n",  getReg(in, in), getReg(in, in->children[0]));
         }
@@ -1046,11 +1070,11 @@ void logicOrNode(struct genericNode* in){
 
             if(in->children[1]->type == SYMBOL_TYPE){
                 fprintf(outFile, "or%c\t%s, %s\n", getType(in), getSymbol(in->children[1]), getReg(in, in));
-                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%s\n", getType(in), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", getType(in), getReg(in, in), getType(in), getR15Size(in), getReg(in, in));
             }else{
                 generalNode(in->children[1]);
                 fprintf(outFile, "or%c\t%s, %s\n", getType(in), getReg(in, in->children[1]), getReg(in, in));
-                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%s\n", getType(in), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", getType(in), getReg(in, in), getType(in), getR15Size(in), getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1128,11 +1152,11 @@ void logicAndNode(struct genericNode* in){
 
             if(in->children[1]->type == SYMBOL_TYPE){
                 fprintf(outFile, "and%c\t%s, %s\n", getType(in), getSymbol(in->children[1]), getReg(in, in));
-                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%s\n", getType(in), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", getType(in), getReg(in, in), getType(in), getR15Size(in), getReg(in, in));
             }else{
                 generalNode(in->children[1]);
                 fprintf(outFile, "and%c\t%s, %s\n", getType(in), getReg(in, in->children[1]), getReg(in, in));
-                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%s\n", getType(in), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", getType(in), getReg(in, in), getType(in), getR15Size(in), getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1189,7 +1213,7 @@ void logicalNotNode(struct genericNode* in){
                 fprintf(outFile, "mov%c\t%s, %s\n", getType(in), getReg(in, in->children[0]), getReg(in, in));
             }
 
-            fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%s\n", getType(in), getReg(in, in), getByteReg(in, in));
+            fprintf(outFile, "cmp%c\t$0, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", getType(in), getReg(in, in), getType(in), getR15Size(in), getReg(in, in));
             
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1247,10 +1271,21 @@ void notEquNode(struct genericNode* in){
             }
 
             if(in->children[1]->type == SYMBOL_TYPE){
-                fprintf(outFile, "cmp%c\t%s, %s\nsetne\t%s\n", getType(in), getSymbol(in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getSymbol(in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }else{
-                generalNode(in->children[1]);
-                fprintf(outFile, "cmp%c\t%s, %s\nsetne\t%s\n", getType(in), getReg(in, in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetne\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getReg(in, in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1315,10 +1350,21 @@ void gtEquNode(struct genericNode* in){
             }
 
             if(in->children[1]->type == SYMBOL_TYPE){
-                fprintf(outFile, "cmp%c\t%s, %s\nsetge\t%s\n", getType(in), getSymbol(in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetge\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getSymbol(in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }else{
-                generalNode(in->children[1]);
-                fprintf(outFile, "cmp%c\t%s, %s\nsetge\t%s\n", getType(in), getReg(in, in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetge\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getReg(in, in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1386,10 +1432,21 @@ void ltNode(struct genericNode* in){
             }
 
             if(in->children[1]->type == SYMBOL_TYPE){
-                fprintf(outFile, "cmp%c\t%s, %s\nsetlt\t%s\n", getType(in), getSymbol(in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "xorq\t%%r15, %%r15\ncmp%c\t%s, %s\nsetl\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getSymbol(in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }else{
-                generalNode(in->children[1]);
-                fprintf(outFile, "cmp%c\t%s, %s\nsetlt\t%s\n", getType(in), getReg(in, in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "xorq\t%%r15, %%r15\ncmp%c\t%s, %s\nsetl\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getReg(in, in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1451,10 +1508,21 @@ void ltEquNode(struct genericNode* in){
             }
 
             if(in->children[1]->type == SYMBOL_TYPE){
-                fprintf(outFile, "cmp%c\t%s, %s\nsetle\t%s\n", getType(in), getSymbol(in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetle\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getSymbol(in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }else{
-                generalNode(in->children[1]);
-                fprintf(outFile, "cmp%c\t%s, %s\nsetle\t%s\n", getType(in), getReg(in, in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetle\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getReg(in, in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1514,10 +1582,21 @@ void equEquNode(struct genericNode* in){
             }
 
             if(in->children[1]->type == SYMBOL_TYPE){
-                fprintf(outFile, "cmp%c\t%s, %s\nseteq\t%s\n", getType(in), getSymbol(in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nseteq\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getSymbol(in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }else{
-                generalNode(in->children[1]);
-                fprintf(outFile, "cmp%c\t%s, %s\nseteq\t%s\n", getType(in), getReg(in, in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nseteq\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getReg(in, in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -1579,10 +1658,21 @@ void gtNode(struct genericNode* in){
             long tempLabel = labelCounter++;
 
             if(in->children[1]->type == SYMBOL_TYPE){
-                fprintf(outFile, "cmp%c\t%s, %s\nsetgt   %s\n", getType(in), getSymbol(in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetg\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getSymbol(in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }else{
-                generalNode(in->children[1]);
-                fprintf(outFile, "cmp%c\t%s, %s\nsetgt   %s\n", getType(in), getReg(in, in->children[1]), getReg(in, in), getByteReg(in, in));
+                fprintf(outFile, "cmp%c\t%s, %s\nsetg\t%%r15b\nmov%c\t%s, %s\n", 
+                getType(in), 
+                getReg(in, in->children[1]), 
+                getReg(in, in), 
+                getType(in),
+                getR15Size(in),
+                getReg(in, in));
             }
         }else{ // ------------------ FLOATING -------------------------------------------------------------
             if(in->children[0]->type == SYMBOL_TYPE){
@@ -2216,12 +2306,22 @@ void mulNode(struct genericNode* in){
 void vecIndexNode(struct genericNode* in){
     fprintf(outFile, "#\tHandling VecIndex Node\n");
 
+    if(isInt(in)){
     if(in->children[0]->type == SYMBOL_TYPE){
-        fprintf(outFile, "pextr%c\t%s, %s, %s\n", getTypeInt(in), getInnerNumber(in->children[1]), getSymbol(in->children[0]), getReg(in, in));
+        fprintf(outFile, "pextr%c\t$%s, %s, %s\n", getTypeIntIntel(in), getInnerNumber(in->children[1]), getSymbol(in->children[0]), getReg(in, in));
     }else{
         generalNode(in->children[0]);
-        fprintf(outFile, "pextr%c %s, %s, %s\n", getTypeInt(in), getInnerNumber(in->children[1]), getReg(in, in->children[0]), getReg(in, in));
+        fprintf(outFile, "pextr%c\t$%s, %s, %s\n", getTypeIntIntel(in), getInnerNumber(in->children[1]), getReg(in, in->children[0]), getReg(in, in));
     }
+    }else{
+    if(in->children[0]->type == SYMBOL_TYPE){
+        fprintf(outFile, "pshuf%c\t$%s, %s, %s\n", getTypeIntIntel(in), getInnerNumber(in->children[1]), getSymbol(in->children[0]), getReg(in, in));
+    }else{
+        generalNode(in->children[0]);
+        fprintf(outFile, "pshuf%c\t$%s, %s, %s\n", getTypeIntIntel(in), getInnerNumber(in->children[1]), getReg(in, in->children[0]), getReg(in, in));
+    }
+    }
+
 }
 
 void preCallPush(){
@@ -2434,11 +2534,20 @@ void returnNode(struct genericNode* in){
 void returnExpNode(struct genericNode* in){
     fprintf(outFile, "#\tHandling RetExp Node\n");
 
+    if(isInt(in->children[0])){
     if(in->children[0]->type == SYMBOL_TYPE){
         fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getSymbol(in->children[0]), getRaxSize(in->children[0]));
     }else{
         generalNode(in->children[0]);
         fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getRaxSize(in->children[0]));
+    }
+    }else{
+    if(in->children[0]->type == SYMBOL_TYPE){
+        fprintf(outFile, "movs%c\t%s, %s\n", getType(in->children[0]), getSymbol(in->children[0]), getRaxSize(in->children[0]));
+    }else{
+        generalNode(in->children[0]);
+        fprintf(outFile, "movs%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getRaxSize(in->children[0]));
+    }
     }
     
     fprintf(outFile, "movq\t%%rbp, %%rsp\npopq\t%%rbp\npopq\t%%rbx\npopq\t%%r12\npopq\t%%r13\npopq\t%%r14\npopq\t%%r15\n");

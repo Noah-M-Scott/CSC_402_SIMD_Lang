@@ -186,9 +186,19 @@ initial_expression:
 initializer_list:
 
 	  BACKSLASH_OP DECIMAL			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
-	| BACKSLASH_OP FLOAT			{ dataLitIndex = strlen($2);  dataLitType = 1; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
 	| BACKSLASH_OP BINARY			{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
 	| BACKSLASH_OP HEX				{ dataLitIndex = strlen($2);  dataLitType = 0; $$ = malloc(dataLitIndex + 1); strcpy($$, $2);  }
+	| BACKSLASH_OP FLOAT			{ 
+		char temp[128];
+		int convert;
+		sscanf($2, "%f", (float*)&convert);
+		sprintf(temp, "0x%x", convert);
+
+		dataLitIndex = strlen(temp);  
+		dataLitType = 1; 
+		$$ = malloc(dataLitIndex + 1);
+		strcpy($$, temp);
+	}
 
 	| initializer_list COMMA_OP DECIMAL { 
 		checkDataLitType(0); 
@@ -199,13 +209,18 @@ initializer_list:
 		dataLitIndex += strlen($3) + 2; 
 	}
 
-	| initializer_list COMMA_OP FLOAT { 
-		checkDataLitType(1); 
-		$$ = realloc($1, dataLitIndex + strlen( $3 ) + 3); 
+	| initializer_list COMMA_OP FLOAT {
+		checkDataLitType(1);
+		char temp[128];
+		int convert;
+		sscanf($3, "%f", (float*)&convert);
+		sprintf(temp, "0x%x", convert);
+
+		$$ = realloc($1, dataLitIndex + strlen( temp ) + 3); 
 		$$[dataLitIndex + 0] = ',';
 		$$[dataLitIndex + 1] = ' ';
-		strcpy(&$$[dataLitIndex + 2], $3); 
-		dataLitIndex += strlen($3) + 2; 
+		strcpy(&$$[dataLitIndex + 2], temp);
+		dataLitIndex += strlen(temp) + 2; 
 	}
 
 	| initializer_list COMMA_OP BINARY { 

@@ -98,68 +98,92 @@ subq	$16, %rsp
 movdqu	%xmm5, (%rsp)
 #	Done
 #	Handling Scope Node
-subq	$8, %rsp
-subq	$16, %rsp
 #	Handling Equ Node
 subq	$8, %rsp
 subq	$8, %rsp
-movq	-328(%rbp), %rsi
-movq	L4(%rip), %rsi
-movq	%rsi, -296(%rip)
+movq	-304(%rbp), %rsi
+leaq	L4(%rip), %r14
+movq	%r14, %rsi
+movq	%rsi, -296(%rbp)
+#	Handling Equ Node
+subq	$16, %rsp
+subq	$16, %rsp
+movdqu	-328(%rbp), %xmm2
+movdqu	-312(%rbp), %xmm15
+movdqu	%xmm15, %xmm2
+#	Handling Deref Node
+movq	-296(%rbp), %r15
+subq	$16, %rsp
+movdqu	-344(%rbp), %xmm3
+movdqu	(%r15), %xmm3
+pblendw	$255, %xmm3, %xmm2
+movdqu	%xmm2, -312(%rbp)
 #	Handling For Node
 #	Handling Equ Node
-subq	$4, %rsp
-subq	$4, %rsp
-movl	-340(%rbp), %edx
-movl	$0, %edx
-movl	%edx, -336(%rip)
+subq	$8, %rsp
+subq	$8, %rsp
+movq	-368(%rbp), %r8
+movq	$0, %r8
+movq	%r8, -360(%rbp)
 L5:
 #	Handling Lt Node
-subq	$4, %rsp
-movl	-344(%rbp), %ecx
-movl	-336(%rip), %ecx
-cmpl	-8(%rbp), %ecx
-setlt	%reg
+subq	$8, %rsp
+movq	-376(%rbp), %r9
+movq	-360(%rbp), %r9
 xorq	%r15, %r15
-movl	%ecx, %r15d
+cmpq	-8(%rbp), %r9
+setl	%r15b
+movq	%r15, %r9
+xorq	%r15, %r15
+movq	%r9, %r15
 cmpq	$0, %r15
 je	L6
 #	Handling Equ Node
 subq	$16, %rsp
 subq	$16, %rsp
-movdqu	-364(%rbp), %xmm4
-movdqu	-304(%rip), %xmm4
+movdqu	-400(%rbp), %xmm6
+movdqu	-312(%rbp), %xmm15
+movdqu	%xmm15, %xmm6
 #	Handling Add Node
-#	Handling Deref Node
-movq	-296(%rip), %r15
 subq	$16, %rsp
-movdqu	-380(%rbp), %xmm5
-movdqu	(%r15), %xmm5
-subq	$16, %rsp
-movdqu	-396(%rbp), %xmm6
-movdqa	%xmm5, %xmm6
+movdqu	-416(%rbp), %xmm7
+movdqu	-312(%rbp), %xmm15
+movdqu	%xmm15, %xmm7
 #	Handling Deref Node
-movq	-296(%rip), %r15
-movdqu	(%r15), %xmm5
-paddq	%xmm5, %xmm6
-pblendw	$255, %xmm6, %xmm4
-movdqu	%xmm4, -304(%rip)
+movq	-296(%rbp), %r15
+subq	$16, %rsp
+movdqu	-432(%rbp), %xmm8
+movdqu	(%r15), %xmm8
+addps	%xmm8, %xmm7
+pblendw	$255, %xmm7, %xmm6
+movdqu	%xmm6, -312(%rbp)
 #	Handling Equ Node
-subq	$4, %rsp
+subq	$8, %rsp
 #	Handling Add Node
-subq	$4, %rsp
-movl	-416(%rbp), %r10d
-movl	-336(%rip), %r10d
-addl	$1, %r10d
-subq	$4, %rsp
-movl	-420(%rbp), %r11d
-movl	%r10d, %r11d
-movl	%r11d, -336(%rip)
+subq	$8, %rsp
+movq	-456(%rbp), %rbx
+movq	-360(%rbp), %rbx
+addq	$1, %rbx
+subq	$8, %rsp
+movq	-464(%rbp), %rdi
+movq	%rbx, %rdi
+movq	%rdi, -360(%rbp)
 jmp	L5
 L6:
+#	Handling RetExp Node
+movdqu	-312(%rbp), %xmm15
+movss	%xmm15, %xmm0
+movq	%rbp, %rsp
+popq	%rbp
+popq	%rbx
+popq	%r12
+popq	%r13
+popq	%r14
+popq	%r15
+ret
 
 
 .data
 L2: .asciz "hello"
 L3: .asciz "world"
-L4: .quad 1, 1
+L4: .long 0x3f800000, 0x3f800000, 0x3f800000, 0x3f800000
