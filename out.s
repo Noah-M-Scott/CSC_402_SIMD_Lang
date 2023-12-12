@@ -171,8 +171,46 @@ movq	%rdi, -360(%rbp)
 jmp	L5
 L6:
 #	Handling RetExp Node
+#	Handling Add Node
+#	Handling Add Node
+#	Handling Add Node
+#	Handling VecIndex Node
+subq	$4, %rsp
+movdqu	-472(%rbp), %xmm1
 movdqu	-312(%rbp), %xmm15
-movss	%xmm15, %xmm0
+pshufd	$0, %xmm15, %xmm1
+subq	$4, %rsp
+movdqu	%xmm2, -328(%rbp)
+movdqu	-476(%rbp), %xmm2
+movss	%xmm1, %xmm2
+#	Handling VecIndex Node
+subq	$4, %rsp
+movdqu	%xmm3, -344(%rbp)
+movdqu	-480(%rbp), %xmm3
+movdqu	-312(%rbp), %xmm15
+pshufd	$1, %xmm15, %xmm3
+addss	%xmm3, %xmm2
+subq	$4, %rsp
+movdqu	-484(%rbp), %xmm4
+movss	%xmm2, %xmm4
+#	Handling VecIndex Node
+subq	$4, %rsp
+movdqu	-488(%rbp), %xmm5
+movdqu	-312(%rbp), %xmm15
+pshufd	$2, %xmm15, %xmm5
+addss	%xmm5, %xmm4
+subq	$4, %rsp
+movdqu	%xmm6, -400(%rbp)
+movdqu	-492(%rbp), %xmm6
+movss	%xmm4, %xmm6
+#	Handling VecIndex Node
+subq	$4, %rsp
+movdqu	%xmm7, -416(%rbp)
+movdqu	-496(%rbp), %xmm7
+movdqu	-312(%rbp), %xmm15
+pshufd	$3, %xmm15, %xmm7
+addss	%xmm7, %xmm6
+movss	%xmm6, %xmm0
 movq	%rbp, %rsp
 popq	%rbp
 popq	%rbx

@@ -14,7 +14,7 @@ single (quad count) foo {
     for(quad i = 0; i < count; i = i + 1;)
         q = q + [z];
 
-    return q;
+    return q[0] + q[1] + q[2] + q[3];
 
 }
 
