@@ -22,12 +22,15 @@ long loopLabelPointerExit = 0;
 
 //is the trailing type in a int register (this counts pointers)
 long isInIntReg(struct genericNode* in){
+    for(int i = 31; i >= 0; i--)
+		if( in->modString[i] == POINTER_POSTFIX ) return 1;
+        else if ( in->modString[i] != NONE_MOD ) break; 
+
     for(int i = 0; i < 32; i++)
         if( in->modString[i] == VECTOR_MOD) return 0;
 
 	for(int i = 31; i >= 0; i--){
-		if( in->modString[i] == POINTER_POSTFIX || 
-            in->modString[i] == BYTE_BASE || 
+		if( in->modString[i] == BYTE_BASE || 
             in->modString[i] == WORD_BASE || 
             in->modString[i] == LONG_BASE || 
             in->modString[i] == QUAD_BASE ){
@@ -40,6 +43,10 @@ long isInIntReg(struct genericNode* in){
 
 //for indexing on type
 int enumType(struct genericNode* in){
+    for(int i = 31; i >= 0; i--)
+		if( in->modString[i] == POINTER_POSTFIX ) return 3;
+        else if ( in->modString[i] != NONE_MOD ) break; 
+
     for(int i = 0; i < 32; i++)
         if( in->modString[i] == VECTOR_MOD) return 4;
 
@@ -58,6 +65,10 @@ int enumType(struct genericNode* in){
 
 //returns the size of a type
 int getTypeSizeInt(struct genericNode* in){
+    for(int i = 31; i >= 0; i--)
+		if( in->modString[i] == POINTER_POSTFIX ) return 8;
+        else if ( in->modString[i] != NONE_MOD ) break; 
+
     for(int i = 0; i < 32; i++)
         if( in->modString[i] == VECTOR_MOD) return 16;
 
@@ -97,7 +108,6 @@ char* getTypeSizeName(struct genericNode* in){
 //used for typing the data literals
 void lastType(struct genericNode* in){
     for(int i = 31; i >= 0; i--){
-		if( in->modString[i] == POINTER_POSTFIX) {lastBaseTypeWas = POINTER_POSTFIX; return;}
 		if( in->modString[i] == BYTE_BASE)       {lastBaseTypeWas = BYTE_BASE; return;}
 		if( in->modString[i] == WORD_BASE)       {lastBaseTypeWas = WORD_BASE; return;}
         if( in->modString[i] == LONG_BASE)       {lastBaseTypeWas = LONG_BASE; return;}
@@ -358,6 +368,14 @@ char* getRaxSize(struct genericNode* in){
     return raxSizes[enumType(in)];
 }
 
+char* getR15Size(struct genericNode* in){
+    static char raxSizes[4][8] = {"%r15b", "%r15w", "%r15d", "%r15"};
+    return raxSizes[enumType(in)];
+}
+
+
+
+
 //get the name of the type's size
 char* getTypeSizeNameFromInt(int in){
 	if( in == POINTER_POSTFIX) return "quad";
@@ -384,9 +402,9 @@ char* getSymbol(struct genericNode* in){
     static char tempBuffer[256];
     if(((struct symbolEntry*)(in->children[0]))->paramIndex != -1){
         if(isVec(in))
-            sprintf(tempBuffer, "%d(%%rip)", -paramOffsetsXmm[((struct symbolEntry*)(in->children[0]))->paramIndex]);
+            sprintf(tempBuffer, "%d(%%rbp)", -paramOffsetsXmm[((struct symbolEntry*)(in->children[0]))->paramIndex] - 8);
         else
-            sprintf(tempBuffer, "%d(%%rip)", -paramOffsets[((struct symbolEntry*)(in->children[0]))->paramIndex]);
+            sprintf(tempBuffer, "%d(%%rbp)", -paramOffsets[((struct symbolEntry*)(in->children[0]))->paramIndex] - 8);
         return tempBuffer;
     }
 
@@ -401,9 +419,11 @@ char* getSymbol(struct genericNode* in){
             delayWriteBuffer(tempBuffer);
             if(lastWasVec)
                 sprintf(tempBuffer, "L%ld(%%rip)", tempLabel);
-            else
-                sprintf(tempBuffer, "$L%ld", tempLabel);
-            
+            else{
+                fprintf(outFile, "leaq\tL%ld(%%rip), %%r14\n", tempLabel);
+                sprintf(tempBuffer, "%%r14");
+            }
+
             return tempBuffer;
         }
 
@@ -414,7 +434,8 @@ char* getSymbol(struct genericNode* in){
             (char *)((struct symbolEntry*)(in->children[0]))->innerScope);
             
             delayWriteBuffer(tempBuffer);
-            sprintf(tempBuffer, "$L%ld", tempLabel);
+            fprintf(outFile, "leaq\tL%ld(%%rip), %%r14\n", tempLabel);
+            sprintf(tempBuffer, "%%r14");
             return tempBuffer;
         }
 
@@ -576,7 +597,13 @@ void forNode(struct genericNode* in){
 
     generalNode(in->children[1]);   //condition
 
-    fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[1]));  //movq handles both floats and clearing short ints
+    if(isInt(in->children[1])){
+        fprintf(outFile, "xorq\t%%r15, %%r15\n");
+
+        fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[1]), getReg(in, in->children[1]), getR15Size(in->children[1]));
+    }else
+        fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[1])); 
+
     fprintf(outFile, "cmpq\t$0, %%r15\n");
     fprintf(outFile, "jz\tL%ld\n", exitLabel);
 
@@ -606,7 +633,12 @@ void whileNode(struct genericNode* in){
 
     generalNode(in->children[0]);   //condition
 
-    fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0]));  //movq handles both floats and clearing short ints
+    if(isInt(in->children[0])){
+        fprintf(outFile, "xorq\t%%r15, %%r15\n");
+        fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getR15Size(in->children[0]));
+    }else
+        fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0])); 
+
     fprintf(outFile, "cmpq\t$0, %%r15\n");
     fprintf(outFile, "jz\tL%ld\n", exitLabel);
 
@@ -637,7 +669,16 @@ void ifNode(struct genericNode* in){
 
     long tempLabel = labelCounter++;
 
-    fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0]));  //movq handles both floats and clearing short ints
+    if(isInt(in->children[0])){
+        fprintf(outFile, "xorq\t%%r15, %%r15\n");
+
+        if(in->children[0]->type == SYMBOL_TYPE)
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getSymbol(in->children[0]), getR15Size(in->children[0]));
+        else
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getR15Size(in->children[0]));
+    }else
+        fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0])); 
+
     fprintf(outFile, "cmpq\t$0, %%r15\n");
     fprintf(outFile, "jz\tL%ld\n", tempLabel);
 
@@ -654,9 +695,18 @@ void ifElseNode(struct genericNode* in){
     long tempLabel = labelCounter++;
     long tempLabelElse = labelCounter++;
 
-    fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0]));  //movq handles both floats and clearing short ints
+    if(isInt(in->children[0])){
+        fprintf(outFile, "xorq\t%%r15, %%r15\n");
+
+        if(in->children[0]->type == SYMBOL_TYPE)
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getSymbol(in->children[0]), getR15Size(in->children[0]));
+        else
+            fprintf(outFile, "mov%c\t%s, %s\n", getType(in->children[0]), getReg(in, in->children[0]), getR15Size(in->children[0]));
+    }else
+        fprintf(outFile, "movq\t%s, %%r15\n", getReg(in, in->children[0])); 
+
     fprintf(outFile, "cmpq\t$0, %%r15\n");
-    fprintf(outFile, "jz\tL%ld\n", tempLabel);
+    fprintf(outFile, "je\tL%ld\n", tempLabel);
 
     generalNode(in->children[1]);   //if body
 
@@ -727,7 +777,7 @@ void equNode(struct genericNode* in){
         generalNode(in->children[0]); //make it
     }
 
-    long vectorSize = isVec(in);
+    long vectorSize = isVec(in->children[1]);
     if(vectorSize){ //-------------------- VECTOR CODE ----------------------------------------------
 
         if(in->children[0]->type == SYMBOL_TYPE){
@@ -2394,7 +2444,12 @@ void generalNode(struct genericNode* in){
     if(in == NULL)
         return;
 
-    printf("node %ld\n", in->type);
+    lastType(in);
+
+    if(isVec(in))
+        lastWasVec = 1;
+    else
+        lastWasVec = 0;
 
 	switch(in->type){
 	case(SYMBOL_TYPE):              symbolNode(in); break;

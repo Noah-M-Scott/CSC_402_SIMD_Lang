@@ -740,7 +740,6 @@ struct symbolEntry* createImmediate(char* inValue, int type){
 		temp->constValue[1] = 't';
 		temp->constValue[2] = 'r';
 
-		printf("Used a string\n");
 
 		temp->innerScope = (struct genericNode*)inValue;
 	
@@ -1091,8 +1090,6 @@ struct genericNode* registerNodeFunction(struct genericNode* in){
 //adds a new child to a node, but since reallocing a node more often than not loses it's place in memory
 //we have to go through and update all instances of it's old pointer
 struct genericNode* appendAChild(struct genericNode* p, struct genericNode* c){
-
-	printf("children : %ld\n", p->childCount);
 
 	if(p->childCount > 40000){
 		printf("ahhhh\n");

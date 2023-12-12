@@ -1,19 +1,7 @@
-[byte] (long mode) hello {
+[byte] (quad mode) hello {
     if(mode)
         return "hello";
     else
         return "world";
 }
 
-long (long count) bar {
-
-    [long<3>] z = \ 1, 1, 1 \;
-
-    long<3> a;
-    a = [z];
-
-    for(int i = 0; i < count; i = i + 1;)
-        a = a + [z];
-
-    return [z][0] + [z][1] + [z][2];
-}
